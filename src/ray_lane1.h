@@ -1,0 +1,146 @@
+typedef f32 lane_f32; 
+typedef u32 lane_u32; 
+typedef v3 lane_v3;
+
+
+internal void ConditionalAssign(lane_u32 *Dest, lane_u32 Mask, lane_u32 Source) {
+    Mask = Mask ? 0xFFFFFFFF : 0;
+    *Dest = ((~Mask & *Dest) | (Mask & Source));
+}
+
+internal void ConditionalAssign(lane_f32 *Dest, lane_u32 Mask, lane_f32 Source) {
+    ConditionalAssign((lane_u32*)Dest, Mask, *(lane_u32*)&Source);
+}
+
+
+internal lane_f32 Max(lane_f32 A, lane_f32 B) {
+    lane_f32 Result = ((A>B) ? A : B);
+    return Result;
+}
+
+internal lane_f32 Abs(lane_f32 A) {
+    lane_f32 Result = (A < 0) ? -A : A;
+    return Result;
+}
+
+internal lane_f32 Min(lane_f32 A, lane_f32 B) {
+    lane_f32 Result = ((A<B) ? A : B);
+    return Result;
+}
+
+internal b32 MaskIsZeroed(lane_u32 LaneMask) {
+    b32 Result = (LaneMask == 0);
+    return Result;
+}
+
+internal f32 HorizontalAdd(lane_f32 A) {
+    f32 Result = A;
+    return Result;
+}
+
+internal u32 HorizontalAdd(lane_u32 A) {
+    u32 Result = A;
+    return Result;
+}
+
+
+internal lane_f32 LaneF32FromU32(lane_u32 V) {
+    lane_f32 Result = (lane_f32)V;
+    return Result;
+}
+internal lane_f32 LaneF32FromF32(f32 Repl) {
+    lane_f32 Result = Repl;
+    return Result;
+
+}
+
+
+internal lane_u32 LaneU32FromU32(u32 Repl)  {
+    lane_u32 Result = Repl;
+    return Result;
+}
+
+
+internal lane_v3 operator&(lane_u32 A, lane_v3 B) 
+{
+    lane_v3 Result;
+    A = (A ? 0xFFFFFFFF : 0);
+    
+    u32 x = A & *(u32 *)&B.x;
+    u32 y = A & *(u32 *)&B.y;
+    u32 z = A & *(u32 *)&B.z;
+    
+    Result.x = *(f32 *)&x;
+    Result.y = *(f32 *)&y;
+    Result.z = *(f32 *)&z;
+    return Result;
+}
+
+internal lane_u32 LaneU32FromU32(u32 R0,u32 R1,u32 R2,u32 R3) {
+    lane_u32 Result = R0;
+    return Result;
+}
+
+
+internal lane_f32 GatherF32_(void *BasePtr, u32 Stride, lane_u32 Index) {
+    lane_f32 Result = *(f32*)((u8*)BasePtr+ Index * Stride);
+    return Result;
+}
+
+
+internal lane_f32 GatherU32_(void *BasePtr, u32 Stride, lane_u32 Index) {
+    lane_u32 Result = *(u32*)((u8*)BasePtr+ Index * Stride);
+    return Result;
+}
+
+// inline lane_v3
+// Lerp(lane_v3 A, lane_f32 t, lane_v3 B)
+// {
+//     lane_v3 Result = (1.0f - t)*A + t*B;
+    
+//     return(Result);
+// }
+
+
+
+//TODO(JAcques) : REMOVE!!!
+#include "../ext/glm/glm/mat4x4.hpp"
+#include "../ext/glm/glm/gtc/matrix_transform.hpp"
+typedef glm::mat4 mat4;
+
+mat4 LookAt(lane_v3 CameraPosition, lane_v3 Center, lane_v3 UpVector)
+{
+    glm::vec3 CameraPositionGlm(CameraPosition.x, CameraPosition.y, CameraPosition.z);
+    glm::vec3 CenterGlm(Center.x, Center.y, Center.z);
+    glm::vec3 UpVectorGlm(UpVector.x, UpVector.y, UpVector.z);
+
+    mat4 Result = glm::lookAtLH(CameraPositionGlm, CenterGlm, UpVectorGlm);
+	Result = glm::inverse(Result);
+
+    return Result;
+}
+
+lane_v3 TransformPosition(mat4 Matrix, lane_v3 Vector)
+{
+    lane_v3 Result = {};
+    glm::vec4 ResultGlm = Matrix * glm::vec4(Vector.x, Vector.y, Vector.z, 1.0f);
+
+    Result.x = ResultGlm.x;
+    Result.y = ResultGlm.y;
+    Result.z = ResultGlm.z;
+
+    return Result;
+}
+
+lane_v3 TransformDirection(mat4 Matrix, lane_v3 Vector)
+{
+    lane_v3 Result = {};
+    glm::vec4 ResultGlm = Matrix * glm::vec4(Vector.x, Vector.y, Vector.z, 0.0f);
+
+    Result.x = ResultGlm.x;
+    Result.y = ResultGlm.y;
+    Result.z = ResultGlm.z;
+
+    return Result;
+
+}

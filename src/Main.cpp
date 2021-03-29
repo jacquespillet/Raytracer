@@ -95,29 +95,6 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
     }
 
-    //If BRDF Material
-    //Sample one light
-    //SampleLight();
-    //Sample the next ray, get the brdf and the pdf for associated direction
-    //brdf = sampleBrdf(wo, outDirection, pdf)
-    //Attenuation *= brdf * std::abs(glm::dot(wi, isect.shading.n))/pdf;
-//     lane_u32 DiffuseMaterialMask = (MaterialType == LaneU32FromU32(material_types::Diffuse));
-//     if(!MaskIsZeroed(DiffuseMaterialMask)) 
-//     {
-//         lane_v3 MatRefColor  = GatherV3(Materials, Hit.MaterialIndex, ReflectionColor);
-        
-//         lane_v3 PureBounce = Reflect(*RayDirection, Hit.Normal);
-//         lane_v3 RandomBounce = NOZ(Hit.Normal + RandomInSphere(Series));
-//         *RayDirection = NOZ(RandomBounce);
-// #if COSINE_WEIGHTED
-//         //Simple cosine weighted attenuation
-//         lane_f32 CosineTerm = Abs(Inner(*RayDirection, Hit.Normal));
-// #else    
-//         lane_f32 CosineTerm = LaneF32FromF32(1.0f);
-// #endif
-//         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
-//     }
-    
     
     lane_u32 MetalicMaterialMask = (MaterialType == LaneU32FromU32(material_types::Metalic));
     if(!MaskIsZeroed(MetalicMaterialMask)) 
@@ -125,15 +102,60 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_v3 MatRefColor  = GatherV3(Materials, Hit.MaterialIndex, ReflectionColor);
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
         
+#if 0
         lane_v3 ReflectedDirection = Reflect(LocalRayDirection, V3(0,0,1));
         ReflectedDirection =NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
         lane_f32 CosineTerm = Abs(Inner(ReflectedDirection, V3(0,0,1)));
+        *RayDirection = TransformDirection(Transform, ReflectedDirection);
+        ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
+#else
+
+#define MICROFACET 0
+#define LAMBERTIAN 0
+#define PLASTIC 1   
+#if MICROFACET
+        //Sample BSDF to get the next path direction
+        microfacet_reflection Reflection = MicrofacetReflection(V3(1,1,1));
+        lane_v3 OutputDirection  = V3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+        
+        lane_v3 brdf = MicroFacetReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
+#endif
+
+#if LAMBERTIAN
+        //Sample BSDF to get the next path direction
+        lambertian_reflection Reflection = LambertianReflection(V3(1,1,1));
+        lane_v3 OutputDirection  = V3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+
+        lane_v3 brdf = LambertianReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
+#endif
+
+#if PLASTIC
+        //Sample BSDF to get the next path direction
+        plastic_material Reflection = PlasticMaterial();
+        
+        lane_v3 OutputDirection  = V3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+
+        lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
+
+        // DeletePlasticMaterial(&Reflection);
+#endif
+
+        if(pdf>0)
+        {
+            lane_v3 MetalicAttenuation = brdf * Abs(Inner(OutputDirection, V3(0,0,1))) * (1.0f / pdf);
+            *RayDirection = TransformDirection(Transform, OutputDirection);
+            ConditionalAssign(Attenuation, MetalicMaterialMask, MetalicAttenuation);
+        }
+
+#endif
         // lane_f32 CosineTerm = LaneF32FromF32(1.0f);
 
-        *RayDirection = TransformDirection(Transform, ReflectedDirection);
-
-
-        ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
     }
     
     
@@ -295,6 +317,8 @@ internal void CastRays(cast_state *State)
             lane_v3 MatEmitColor = LaneMask & GatherV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
             Sample += Hadamard(Attenuation, MatEmitColor); //Add to the current pixel sample the value of the emitted color that we have hit times the current attenuation
             
+            //Sample 1 light from the point of intersection
+            //Sample += Sample1Light(Hit.Point);    
 
             //When we hit the material 0, we have missed. We kill the ray at that point, it's not gonna continue.
             LaneMask = LaneMask & (Hit.MaterialIndex != LaneU32FromU32( 0));
@@ -500,7 +524,7 @@ int main(int argCount, char **args) {
         EmissiveMaterial({0.5f, 0.6f, 0.8f}),
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
         DiffuseMaterial({0.7f, 0.1f, 0.1f}),
-        EmissiveMaterial({20.0f, 10.0f, 5.0f}),
+        EmissiveMaterial({3.0f, 2.0f, 2.0f}),
         MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.25F),
         DielectricMaterial(1.2f),
         VolumetricMaterial(1.2f)
@@ -508,7 +532,7 @@ int main(int argCount, char **args) {
    
     //Normal, distance, matIndex
     plane Planes[] = {
-        {{0, 1, 0},{1.0f}, 4}
+        {{0, 1, 0},{1.2f}, 4}
         // ,{{0, 0, -1},{2}, 2} 
     };
  

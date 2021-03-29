@@ -15,8 +15,13 @@ typedef int64_t  s64;
 typedef float f32;
 typedef double f64;
 
+#define InvPi32 0.3183098861f
 #define Pi32 3.14159265359f
 #define Tau32 6.28318530717958647692f
+#define PiOver2 1.57079632679489661923
+#define PiOver4 0.78539816339744830961
+#define Sqrt2   1.41421356237309504880
+
 #define F32Max FLT_MAX
 #define F32Min -FLT_MAX
 
@@ -66,18 +71,3 @@ inline u32 NextPowerOfTwo(u32 A) {
 }
 
 #include "math.h"
-f32 Cosine(f32 Input)
-{
-    return cos(Input);
-}
-
-f32 Sine(f32 Input)
-{
-    return sin(Input);
-}
-
-f32 Tangent(f32 Input)
-{
-    return tan(Input);
-}
-

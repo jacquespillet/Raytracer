@@ -1,5 +1,5 @@
 #if !defined(LANE_WIDTH)
-#define LANE_WIDTH 8
+#define LANE_WIDTH 1
 #endif
 
 struct v2 
@@ -195,11 +195,6 @@ internal void ConditionalAssign(lane_u32 *Dest, lane_u32 Mask, lane_u32 Source) 
 }
 
 
-inline lane_f32 Clamp01(lane_f32 Value) {
-    lane_f32 Result = Min( Max(Value, LaneF32FromF32(0.0f)), LaneF32FromF32(1.0f));
-    return Result;
-}
-
 
 internal lane_v3
 operator&(lane_u32 A, lane_v3 B)
@@ -221,6 +216,16 @@ internal lane_f32 V3Component(lane_v3 Vector, u32 ComponentIndex) {
 #endif
 
     
+inline lane_f32 Clamp01(lane_f32 Value) {
+    lane_f32 Result = Min( Max(Value, LaneF32FromF32(0.0f)), LaneF32FromF32(1.0f));
+    return Result;
+}
+
+inline lane_f32 Clamp(lane_f32 Value,lane_f32 MinValue, lane_f32 MaxValue) {
+    lane_f32 Result = Min( Max(Value, MinValue), MaxValue);
+    return Result;
+}
+
 
 internal lane_v3 GatherV3_(void *BasePtr, u32 Stride, lane_u32 Indices) {
     lane_v3 Result;
@@ -298,6 +303,17 @@ V3(f32 X, f32 Y, f32 Z)
     Result.x = X;
     Result.y = Y;
     Result.z = Z;
+    
+    return(Result);
+}
+
+inline lane_v2
+V2(f32 X, f32 Y)
+{
+    lane_v2 Result;
+    
+    Result.x = X;
+    Result.y = Y;
     
     return(Result);
 }
@@ -614,6 +630,37 @@ operator*(v4 B, f32 A)
     return(Result);
 }
 
+inline lane_v2
+operator*(lane_f32 A, lane_v2 B)
+{
+    lane_v2 Result;
+    
+    Result.x = A*B.x;
+    Result.y = A*B.y;
+    
+    return(Result);
+}
+
+
+inline lane_v2
+operator-(lane_v2 A, lane_v2 B)
+{
+    lane_v2 Result;
+    
+    Result.x = A.x - B.x;
+    Result.y = A.y - B.y;
+    
+    return(Result);
+}
+
+inline lane_v2
+operator*(lane_v2 B, lane_f32 A)
+{
+    lane_v2 Result = A*B;
+    
+    return(Result);
+}
+
 
 inline f32
 Inner(v4 A, v4 B)
@@ -646,9 +693,9 @@ NOZ(v4 A)
     return(Result);
 }
 
-#include "../ext/glm/glm/mat4x4.hpp"
 #define GLM 0
 #if GLM
+#include "../ext/glm/glm/mat4x4.hpp"
 
 //TODO(JAcques) : REMOVE!!!
 // #include "../ext/glm/glm/ext.hpp"
@@ -733,6 +780,60 @@ lane_mat4 Translate(lane_mat4 Matrix, lane_v3 Position)
     Result[3][0] = Position.x;
     Result[3][1] = Position.y;
     Result[3][2] = Position.z;
+    return Result;
+}
+
+glm::mat4 GlmFromlane_Mat4(lane_mat4 Input)
+{
+    glm::mat4 Result;
+    Result[0][0] = GetMatrixElement(Input, 0, 0);
+    Result[1][0] = GetMatrixElement(Input, 0, 1);
+    Result[2][0] = GetMatrixElement(Input, 0, 2);
+    Result[3][0] = GetMatrixElement(Input, 0, 3);
+    
+    Result[0][1] = GetMatrixElement(Input, 1, 0);
+    Result[1][1] = GetMatrixElement(Input, 1, 1);
+    Result[2][1] = GetMatrixElement(Input, 1, 2);
+    Result[3][1] = GetMatrixElement(Input, 1, 3);
+    
+    Result[0][2] = GetMatrixElement(Input, 2, 0);
+    Result[1][2] = GetMatrixElement(Input, 2, 1);
+    Result[2][2] = GetMatrixElement(Input, 2, 2);
+    Result[3][2] = GetMatrixElement(Input, 2, 3);
+    
+    Result[0][3] = GetMatrixElement(Input, 3, 0);
+    Result[1][3] = GetMatrixElement(Input, 3, 1);
+    Result[2][3] = GetMatrixElement(Input, 3, 2);
+    Result[3][3] = GetMatrixElement(Input, 3, 3);
+
+    return Result;
+}
+
+lane_mat4 GlmTolane_Mat4(glm::mat4 Input)
+{
+    lane_mat4 Result = {};
+   
+    SetMatrixElement(&Result, 0, 0, Input[0][0]);
+    SetMatrixElement(&Result, 0, 1, Input[1][0]);
+    SetMatrixElement(&Result, 0, 2, Input[2][0]);
+    SetMatrixElement(&Result, 0, 3, Input[3][0]);
+   
+    SetMatrixElement(&Result, 1, 0, Input[0][1]);
+    SetMatrixElement(&Result, 1, 1, Input[1][1]);
+    SetMatrixElement(&Result, 1, 2, Input[2][1]);
+    SetMatrixElement(&Result, 1, 3, Input[3][1]);
+   
+    SetMatrixElement(&Result, 2, 0, Input[0][2]);
+    SetMatrixElement(&Result, 2, 1, Input[1][2]);
+    SetMatrixElement(&Result, 2, 2, Input[2][2]);
+    SetMatrixElement(&Result, 2, 3, Input[3][2]);
+   
+    SetMatrixElement(&Result, 3, 0, Input[0][3]);
+    SetMatrixElement(&Result, 3, 1, Input[1][3]);
+    SetMatrixElement(&Result, 3, 2, Input[2][3]);
+    SetMatrixElement(&Result, 3, 3, Input[3][3]);
+    
+
     return Result;
 }
 
@@ -1148,61 +1249,6 @@ lane_mat3 Inverse(lane_mat3 Input)
     return CofactorMatrix;
 }
 
-#if LANE_WIDTH == 1
-glm::mat4 GlmFromlane_Mat4(lane_mat4 Input)
-{
-    glm::mat4 Result;
-    Result[0][0] = GetMatrixElement(Input, 0, 0);
-    Result[1][0] = GetMatrixElement(Input, 0, 1);
-    Result[2][0] = GetMatrixElement(Input, 0, 2);
-    Result[3][0] = GetMatrixElement(Input, 0, 3);
-    
-    Result[0][1] = GetMatrixElement(Input, 1, 0);
-    Result[1][1] = GetMatrixElement(Input, 1, 1);
-    Result[2][1] = GetMatrixElement(Input, 1, 2);
-    Result[3][1] = GetMatrixElement(Input, 1, 3);
-    
-    Result[0][2] = GetMatrixElement(Input, 2, 0);
-    Result[1][2] = GetMatrixElement(Input, 2, 1);
-    Result[2][2] = GetMatrixElement(Input, 2, 2);
-    Result[3][2] = GetMatrixElement(Input, 2, 3);
-    
-    Result[0][3] = GetMatrixElement(Input, 3, 0);
-    Result[1][3] = GetMatrixElement(Input, 3, 1);
-    Result[2][3] = GetMatrixElement(Input, 3, 2);
-    Result[3][3] = GetMatrixElement(Input, 3, 3);
-
-    return Result;
-}
-
-lane_mat4 GlmTolane_Mat4(glm::mat4 Input)
-{
-    lane_mat4 Result = {};
-   
-    SetMatrixElement(&Result, 0, 0, Input[0][0]);
-    SetMatrixElement(&Result, 0, 1, Input[1][0]);
-    SetMatrixElement(&Result, 0, 2, Input[2][0]);
-    SetMatrixElement(&Result, 0, 3, Input[3][0]);
-   
-    SetMatrixElement(&Result, 1, 0, Input[0][1]);
-    SetMatrixElement(&Result, 1, 1, Input[1][1]);
-    SetMatrixElement(&Result, 1, 2, Input[2][1]);
-    SetMatrixElement(&Result, 1, 3, Input[3][1]);
-   
-    SetMatrixElement(&Result, 2, 0, Input[0][2]);
-    SetMatrixElement(&Result, 2, 1, Input[1][2]);
-    SetMatrixElement(&Result, 2, 2, Input[2][2]);
-    SetMatrixElement(&Result, 2, 3, Input[3][2]);
-   
-    SetMatrixElement(&Result, 3, 0, Input[0][3]);
-    SetMatrixElement(&Result, 3, 1, Input[1][3]);
-    SetMatrixElement(&Result, 3, 2, Input[2][3]);
-    SetMatrixElement(&Result, 3, 3, Input[3][3]);
-    
-
-    return Result;
-}
-#endif
 
 lane_mat4 Inverse(lane_mat4 Input)
 {

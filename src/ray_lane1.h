@@ -119,3 +119,24 @@ internal lane_f32 GatherU32_(void *BasePtr, u32 Stride, lane_u32 Index) {
 //     return(Result);
 // }
 
+#include <cmath>
+internal lane_f32 Log(lane_f32 Input)
+{
+    return std::log(Input);
+}
+
+lane_f32 Cosine(lane_f32 Input)
+{
+    return cos(Input);
+}
+
+lane_f32 Sine(lane_f32 Input)
+{
+    return sin(Input);
+}
+
+lane_f32 Tangent(lane_f32 Input)
+{
+    return tan(Input);
+}
+

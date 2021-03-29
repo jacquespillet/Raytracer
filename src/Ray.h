@@ -258,3 +258,7 @@ struct cast_state
  
     v3 FinalColor;
 };
+
+#include "microfacets_bxdf.h"
+#include "lambertian_bxdf.h"
+#include "bsdf.h"

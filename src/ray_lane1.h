@@ -1,6 +1,21 @@
 typedef f32 lane_f32; 
 typedef u32 lane_u32; 
-typedef v3 lane_v3;
+
+
+struct lane_v2 
+{
+    lane_f32 x, y;
+};
+
+struct lane_v3 
+{
+    lane_f32 x, y, z;
+};
+
+struct lane_v4 
+{
+    lane_f32 x, y, z, w;
+};
 
 
 internal void ConditionalAssign(lane_u32 *Dest, lane_u32 Mask, lane_u32 Source) {
@@ -101,46 +116,3 @@ internal lane_f32 GatherU32_(void *BasePtr, u32 Stride, lane_u32 Index) {
 //     return(Result);
 // }
 
-
-
-//TODO(JAcques) : REMOVE!!!
-#include "../ext/glm/glm/mat4x4.hpp"
-#include "../ext/glm/glm/gtc/matrix_transform.hpp"
-typedef glm::mat4 mat4;
-
-mat4 LookAt(lane_v3 CameraPosition, lane_v3 Center, lane_v3 UpVector)
-{
-    glm::vec3 CameraPositionGlm(CameraPosition.x, CameraPosition.y, CameraPosition.z);
-    glm::vec3 CenterGlm(Center.x, Center.y, Center.z);
-    glm::vec3 UpVectorGlm(UpVector.x, UpVector.y, UpVector.z);
-
-    mat4 Result = glm::lookAtLH(CameraPositionGlm, CenterGlm, UpVectorGlm);
-	Result = glm::inverse(Result);
-
-    return Result;
-}
-
-lane_v3 TransformPosition(mat4 Matrix, lane_v3 Vector)
-{
-    lane_v3 Result = {};
-    glm::vec4 ResultGlm = Matrix * glm::vec4(Vector.x, Vector.y, Vector.z, 1.0f);
-
-    Result.x = ResultGlm.x;
-    Result.y = ResultGlm.y;
-    Result.z = ResultGlm.z;
-
-    return Result;
-}
-
-lane_v3 TransformDirection(mat4 Matrix, lane_v3 Vector)
-{
-    lane_v3 Result = {};
-    glm::vec4 ResultGlm = Matrix * glm::vec4(Vector.x, Vector.y, Vector.z, 0.0f);
-
-    Result.x = ResultGlm.x;
-    Result.y = ResultGlm.y;
-    Result.z = ResultGlm.z;
-
-    return Result;
-
-}

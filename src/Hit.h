@@ -3,6 +3,8 @@ struct hit {
     lane_v3 Normal;
     lane_u32 MaterialIndex;
     lane_f32 Distance;
+    lane_mat4 Transform;
+    lane_mat4 InverseTransform;
 };
 
 void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
@@ -23,6 +25,9 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
             ConditionalAssign(&Hit->MaterialIndex, HitMask, PlaneMatIndex);
             ConditionalAssign(&Hit->Position, HitMask, RayOrigin + t * RayDirection);
             ConditionalAssign(&Hit->Normal, HitMask, PlaneN);
+
+            Hit->Transform = OrthoBasisFromNormal(Hit->Normal);
+            Hit->InverseTransform = Inverse(Hit->Transform);
         }
     }
 }
@@ -30,8 +35,8 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
 b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
 
     lane_f32 Spherer = LaneF32FromF32( Sphere->r);
-    lane_v3 SphereP = LaneV3FromV3 (Sphere->P);
-    
+    lane_v3 SphereP = TransformPosition(Sphere->Transform, V3(0,0,0));
+
     lane_v3 SphereRelativeOrigin =  RayOrigin - SphereP;
     lane_f32 a = Inner(RayDirection, RayDirection);
     lane_f32 b = 2.0f * Inner(RayDirection, SphereRelativeOrigin);
@@ -63,6 +68,10 @@ b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
             ConditionalAssign(&Hit->Position, HitMask, RayOrigin + t * RayDirection);
             ConditionalAssign(&Hit->Normal, HitMask, NOZ(Hit->Position - SphereP));
 
+            //TODO(Jacques) : Conditional assign matrix
+            Hit->Transform = OrthoBasisFromNormal(Hit->Normal);
+            Hit->InverseTransform = Inverse(Hit->Transform);
+            
             return true;
         }
     }

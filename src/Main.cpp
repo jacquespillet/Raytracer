@@ -64,6 +64,10 @@ internal u32 GetCPUCoreCount(void)
     SYSTEM_INFO Info;
     GetSystemInfo(&Info);
     u32 Result = Info.dwNumberOfProcessors;
+
+#if defined DEBUG
+  Result = 1;
+#endif
     return Result;
 }
 
@@ -73,7 +77,9 @@ internal u32 GetCPUCoreCount(void)
 //RAYTRACING
 lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane_v3 *Attenuation, lane_v3 *RayDirection) {
     //Get material properties
-    
+    lane_mat4 Transform = Hit.Transform;
+    lane_mat4 InverseTransform = Hit.InverseTransform;
+    lane_v3 LocalRayDirection = TransformDirection(InverseTransform, *RayDirection);
 
     lane_u32 MaterialType = GatherU32(Materials, Hit.MaterialIndex, Type); 
 
@@ -82,16 +88,10 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     {
         lane_v3 MatRefColor  = GatherV3(Materials, Hit.MaterialIndex, ReflectionColor);
         
-        lane_v3 PureBounce = Reflect(*RayDirection, Hit.Normal);
-        lane_v3 RandomBounce = NOZ(Hit.Normal + RandomInSphere(Series));
-        *RayDirection = NOZ(RandomBounce);
-#if COSINE_WEIGHTED
-        //Simple cosine weighted attenuation
-        // lane_f32 CosineTerm = Max(Inner(*RayDirection, Hit.Normal), LaneF32FromF32( 0));
-        lane_f32 CosineTerm = Abs(Inner(*RayDirection, Hit.Normal));
-#else
-        lane_f32 CosineTerm = LaneF32FromF32(1.0f);
-#endif
+        lane_v3 RandomBounce = NOZ(V3(0,0,1) + RandomInSphere(Series));
+        lane_f32 CosineTerm = Abs(Inner(RandomBounce, V3(0,0,1)));
+        *RayDirection = NOZ(TransformDirection(Transform, RandomBounce));
+
         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
     }
 
@@ -112,7 +112,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
 // #if COSINE_WEIGHTED
 //         //Simple cosine weighted attenuation
 //         lane_f32 CosineTerm = Abs(Inner(*RayDirection, Hit.Normal));
-// #else
+// #else    
 //         lane_f32 CosineTerm = LaneF32FromF32(1.0f);
 // #endif
 //         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
@@ -125,14 +125,13 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_v3 MatRefColor  = GatherV3(Materials, Hit.MaterialIndex, ReflectionColor);
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
         
-        lane_v3 PureBounce = Reflect(*RayDirection, Hit.Normal);
-        *RayDirection = NOZ(PureBounce + MatSpecular * RandomInSphere(Series));
-#if COSINE_WEIGHTED
-        //Simple cosine weighted attenuation
-        lane_f32 CosineTerm = Max(Inner(*RayDirection, Hit.Normal), LaneF32FromF32( 0));
-#else
-        lane_f32 CosineTerm = LaneF32FromF32(1.0f);
-#endif
+        lane_v3 ReflectedDirection = Reflect(LocalRayDirection, V3(0,0,1));
+        ReflectedDirection =NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
+        lane_f32 CosineTerm = Abs(Inner(ReflectedDirection, V3(0,0,1)));
+
+        *RayDirection = TransformDirection(Transform, ReflectedDirection);
+
+
         ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
     }
     
@@ -190,9 +189,8 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 
 camera CreateCamera(u32 Width, u32 Height)
 {
-    //Camera settings. TODO(Jacques) : Put that into a struct, and maybe use matrices ?
     lane_f32 FilmDistance = LaneF32FromF32 (1.0f);
-    lane_v3 CameraPosition = V3(5, 5, 10);
+    lane_v3 CameraPosition = V3(0, 3, 10);
     lane_v3 FilmCenter = V3(0, 0, FilmDistance);
 
     camera Result = {};
@@ -480,45 +478,20 @@ internal bvh *BuildBVH(sphere *Objects, int NumObjects, u32 level) {
 int main(int argCount, char **args) {
 
 #if TEST_STUFF
-    random_series Entropy = {LaneU32FromU32(
-                                             rand()
-                                            ,rand()
-                                            ,rand()
-                                            ,rand()
-                                            ,rand()
-                                            ,rand()
-                                            ,rand()
-                                            ,rand()
-                                            )
-                            }; 
-    // u32 RaysPerPixel = 1024;    
-    // u32 LaneRayCount = RaysPerPixel / LANE_WIDTH;    
-    // lane_v3 *Samples = (lane_v3 *) malloc(LaneRayCount);
-    // Jitter((lane_v3*)Samples, RaysPerPixel, &Entropy);
-    // free(Samples);
 
-    // lane_v3 Samples[1024 / LANE_WIDTH];
-    // MultiJitter((lane_v3*)&Samples, 1024, &Entropy);
+    // mat4 lookat = LookAt(V3(0,0,0), NOZ(V3(0.8, 0.1, 0.2)), V3(0, 1, 0));
+    // mat4_ lookat_ = LookAt_(V3(0,0,0), NOZ(V3(0.8, 0.1, 0.2)), V3(0, 1, 0));
     
-    lane_v3 *Samples = (lane_v3 *) malloc(1024 / LANE_WIDTH * sizeof(lane_v3));
-    MultiJitter(Samples, 1024, &Entropy);
+    
+    mat4 basis = OrthoBasisFromNormal(NOZ(V3(0.4, 0.7, 0.2)));
+    mat4_ basis_ = OrthoBasisFromNormal_(NOZ(V3(0.4, 0.7, 0.2)));
 
-    image_32 Image =  AllocateImage(512, 512);
-    for(u32 SampleIndex=0; SampleIndex < ArrayCount(Samples); SampleIndex++) {
-        for(u32 LaneIndex = 0; LaneIndex < LANE_WIDTH; LaneIndex++) {
-            
-            v3 Sample = ExtractAtIndex(*(Samples +SampleIndex), LaneIndex);
-            // v3 SampleY = ExtractAtIndex(Samples[SampleIndex], LaneIndex);
-            u32 PixelCoordinateX = Sample.x  * 512;
-            u32 PixelCoordinateY = Sample.y  * 512;
 
-            u32 * PixelPointer = GetPixelPointer(Image, PixelCoordinateX, PixelCoordinateY);
-            
-            *PixelPointer = 0xff000000ff;
-        }
-    }
-    WriteImage(Image, "Samples.bmp"); 
-    free(Samples);
+
+
+
+
+
 #else
 
     //Specular, emition, reflection
@@ -527,22 +500,23 @@ int main(int argCount, char **args) {
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
         DiffuseMaterial({0.7f, 0.1f, 0.1f}),
         EmissiveMaterial({20.0f, 10.0f, 5.0f}),
-        MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.75F),
+        MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.25F),
         DielectricMaterial(1.2f),
         VolumetricMaterial(1.2f)
     };
    
     //Normal, distance, matIndex
     plane Planes[] = {
-        {{0, 1, 0},{1.0f}, 1}
-        ,{{0, 0, -1},{2}, 2} 
+        {{0, 1, 0},{1.0f}, 4}
+        // ,{{0, 0, -1},{2}, 2} 
     };
  
  
     sphere Spheres[] {
-        Sphere({-1,  1, 0}, 0.5, 4),
-        Sphere({0,  0,0}, 0.5, 1)
-        ,Sphere({0.5,  0,1.5}, 0.5, 3)
+        Sphere({-1,  -0.7, 0}, 0.5, 4),
+		Sphere({0,  -0.7,0}, 0.5, 1)
+        ,Sphere({0.5,  -0.7,1.5}, 0.5, 3)
+        //,Sphere({0,  1,3}, 0.5, 5)
     };
     
     volume Volumes[] {

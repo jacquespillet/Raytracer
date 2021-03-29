@@ -26,8 +26,8 @@ typedef bool b32;
 
 #define U32Max ((u32)-1)
 
-
 #include "Maths.h"
+
 #include "ray_lane.h"
 
 struct random_series 
@@ -132,7 +132,8 @@ public:
 struct sphere
 {
 public:
-    v3 P;
+    lane_mat4 Transform;
+    
     f32 r;
     u32 MatIndex;
     aabb AABB;
@@ -147,7 +148,10 @@ public:
 
 internal sphere Sphere(v3 P, f32 r, u32 MatIndex) {
     sphere Result = {};
-    Result.P = P;
+    
+    Result.Transform = Translate(Identity(), V3(P.x, P.y, P.z));
+    
+    
     Result.r = r;
     Result.MatIndex = MatIndex;
 
@@ -217,7 +221,7 @@ struct work_queue
 //Ray tracing
 
 struct camera {
-    mat4 transform;
+    lane_mat4 transform;
     
     //Film
     lane_v3  FilmCenter; 

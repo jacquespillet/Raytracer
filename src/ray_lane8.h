@@ -10,8 +10,16 @@ struct lane_u32 {
 };
 
 
+struct lane_v2 {
+  lane_f32 x, y;  
+};
+
 struct lane_v3 {
   lane_f32 x, y, z;  
+};
+
+struct lane_v4 {
+  lane_f32 x, y, z, w;  
 };
 
 internal lane_u32 operator<(lane_f32 A, lane_f32 B) {
@@ -281,4 +289,11 @@ internal u32 HorizontalAdd(lane_u32 A) {
     u32 *V = (u32 *)&A.V;
     u64 Result = (u64)V[0] +(u64)V[1] +(u64)V[2] +(u64)V[3] +(u64)V[4] +(u64)V[5] +(u64)V[6] +(u64)V[7];
     return (u32)Result;
+}
+
+internal lane_f32 Abs(lane_f32 A) {
+    lane_u32 Mask = A <= LaneF32FromF32(0.0f);
+    lane_f32 Result = A;
+    ConditionalAssign(&Result, Mask, LaneF32FromF32(-1.0f) * A);
+    return Result;
 }

@@ -19,15 +19,18 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
         lane_u32 tMask = ((t > MinHitDistance) & (t < Hit->Distance));
         if(!MaskIsZeroed(tMask)) { //If the mask does not contain anything, all the rays in the lane missed. 
             lane_u32 HitMask = DenomMask & tMask;
-
+            
             lane_u32 PlaneMatIndex = LaneU32FromU32(Plane->MatIndex);
             ConditionalAssign(&Hit->Distance, HitMask, t);
             ConditionalAssign(&Hit->MaterialIndex, HitMask, PlaneMatIndex);
             ConditionalAssign(&Hit->Position, HitMask, RayOrigin + t * RayDirection);
             ConditionalAssign(&Hit->Normal, HitMask, PlaneN);
 
-            Hit->Transform = OrthoBasisFromNormal(Hit->Normal);
-            Hit->InverseTransform = Inverse(Hit->Transform);
+            lane_v3 HitPosition = RayOrigin + t * RayDirection;
+            
+
+            ConditionalAssign(&Hit->Transform, HitMask, OrthoBasisFromNormal(Hit->Normal));
+            ConditionalAssign(&Hit->InverseTransform, HitMask, Inverse(Hit->Transform));
         }
     }
 }
@@ -68,9 +71,8 @@ b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
             ConditionalAssign(&Hit->Position, HitMask, RayOrigin + t * RayDirection);
             ConditionalAssign(&Hit->Normal, HitMask, NOZ(Hit->Position - SphereP));
 
-            //TODO(Jacques) : Conditional assign matrix
-            Hit->Transform = OrthoBasisFromNormal(Hit->Normal);
-            Hit->InverseTransform = Inverse(Hit->Transform);
+            ConditionalAssign(&Hit->Transform, HitMask, OrthoBasisFromNormal(Hit->Normal));
+            ConditionalAssign(&Hit->InverseTransform, HitMask, Inverse(Hit->Transform));
             
             return true;
         }

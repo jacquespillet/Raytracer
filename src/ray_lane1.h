@@ -17,6 +17,9 @@ struct lane_v4
     lane_f32 x, y, z, w;
 };
 
+internal lane_f32 V3Component(lane_v3 Vector, lane_u32 ComponentIndex) {
+    return *( ((lane_f32*)(&Vector)) + ComponentIndex);
+}
 
 internal void ConditionalAssign(lane_u32 *Dest, lane_u32 Mask, lane_u32 Source) {
     Mask = Mask ? 0xFFFFFFFF : 0;

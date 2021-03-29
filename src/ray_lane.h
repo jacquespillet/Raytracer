@@ -1,5 +1,5 @@
 #if !defined(LANE_WIDTH)
-#define LANE_WIDTH 1
+#define LANE_WIDTH 8
 #endif
 
 struct v2 
@@ -220,10 +220,7 @@ internal lane_f32 V3Component(lane_v3 Vector, u32 ComponentIndex) {
 
 #endif
 
-internal lane_f32 V3Component(lane_v3 Vector, lane_u32 ComponentIndex) {
-    return *( ((lane_f32*)(&Vector)) + ComponentIndex);
-}
-
+    
 
 internal lane_v3 GatherV3_(void *BasePtr, u32 Stride, lane_u32 Indices) {
     lane_v3 Result;
@@ -282,6 +279,7 @@ internal void ConditionalAssign(lane_v3 *Dest, lane_u32 Mask, lane_v3 Source) {
     ConditionalAssign(&Dest->y, Mask, Source.y);
     ConditionalAssign(&Dest->z, Mask, Source.z);
 }
+
 
 
 inline lane_v3 LaneV3FromV3(v3 V) {
@@ -490,8 +488,21 @@ inline lane_f32 ShlickFresnelApproximation(lane_f32 Cosine, lane_f32 IndexOfRefr
 }
 
 
+inline v4
+V4(f32 X, f32 Y, f32 Z, f32 W)
+{
+    v4 Result;
+    
+    Result.x = X;
+    Result.y = Y;
+    Result.z = Z;
+    Result.w = W;
+    
+    return(Result);
+}
+
 inline lane_v4
-V4(lane_f32 X, lane_f32 Y, lane_f32 Z, lane_f32 W)
+LaneV4(lane_f32 X, lane_f32 Y, lane_f32 Z, lane_f32 W)
 {
     lane_v4 Result;
     
@@ -544,7 +555,7 @@ Linear1ToSRGB255(v4 C)
     return(Result);
 }
 
-inline v4 V4(lane_v3 xyz, lane_f32 W)
+inline v4 V4(v3 xyz, f32 W)
 {
     v4 Result;
     
@@ -634,8 +645,6 @@ NOZ(v4 A)
     
     return(Result);
 }
-
-
 
 #include "../ext/glm/glm/mat4x4.hpp"
 #define GLM 0
@@ -745,6 +754,28 @@ struct lane_mat4
     lane_f32 Elements[16];
 };
 
+internal void ConditionalAssign(lane_mat4 *Dest, lane_u32 Mask, lane_mat4 Source) {
+    ConditionalAssign(&Dest->Elements[0], Mask, Source.Elements[0]);
+    ConditionalAssign(&Dest->Elements[1], Mask, Source.Elements[1]);
+    ConditionalAssign(&Dest->Elements[2], Mask, Source.Elements[2]);
+    ConditionalAssign(&Dest->Elements[3], Mask, Source.Elements[3]);
+
+    ConditionalAssign(&Dest->Elements[4], Mask, Source.Elements[4]);
+    ConditionalAssign(&Dest->Elements[5], Mask, Source.Elements[5]);
+    ConditionalAssign(&Dest->Elements[6], Mask, Source.Elements[6]);
+    ConditionalAssign(&Dest->Elements[7], Mask, Source.Elements[7]);
+    
+    ConditionalAssign(&Dest->Elements[8], Mask, Source.Elements[8]);
+    ConditionalAssign(&Dest->Elements[9], Mask, Source.Elements[9]);
+    ConditionalAssign(&Dest->Elements[10], Mask, Source.Elements[10]);
+    ConditionalAssign(&Dest->Elements[11], Mask, Source.Elements[11]);
+    
+    ConditionalAssign(&Dest->Elements[12], Mask, Source.Elements[12]);
+    ConditionalAssign(&Dest->Elements[13], Mask, Source.Elements[13]);
+    ConditionalAssign(&Dest->Elements[14], Mask, Source.Elements[14]);
+    ConditionalAssign(&Dest->Elements[15], Mask, Source.Elements[15]);
+}
+
 lane_mat2 operator*(lane_mat2 &Matrix, lane_f32 &Value)
 {
     lane_mat2 Result = {};
@@ -794,37 +825,38 @@ lane_mat4 operator*(lane_f32 Value, lane_mat4 Matrix)
 }
 
 
-f32 GetMatrixElement(lane_mat2 Matrix, lane_u32 Row, lane_u32 Column)
+lane_f32 GetMatrixElement(lane_mat2 Matrix, u32 Row, u32 Column)
 {
-    lane_u32 Index = 2 * Row + Column;
+    u32 Index = 2 * Row + Column;
+    
     return Matrix.Elements[Index];
 }
 
-f32 GetMatrixElement(lane_mat3 Matrix, lane_u32 Row, lane_u32 Column)
+lane_f32 GetMatrixElement(lane_mat3 Matrix, u32 Row, u32 Column)
 {
-    lane_u32 Index = 3 * Row + Column;
+    u32 Index = 3 * Row + Column;
     return Matrix.Elements[Index];
 }
 
-f32 GetMatrixElement(lane_mat4 Matrix, lane_u32 Row, lane_u32 Column)
+lane_f32 GetMatrixElement(lane_mat4 Matrix, u32 Row, u32 Column)
 {
-    lane_u32 Index = 4 * Row + Column;
+    u32 Index = 4 * Row + Column;
     return Matrix.Elements[Index];
 }
 
-void SetMatrixElement(lane_mat2 *Matrix, lane_u32 Row, lane_u32 Column, f32 Value)
+void SetMatrixElement(lane_mat2 *Matrix, u32 Row, u32 Column, lane_f32 Value)
 {
-    lane_u32 Index = 2 * Row + Column;
+    u32 Index = 2 * Row + Column;
     Matrix->Elements[Index] = Value;
 }
 
-void SetMatrixElement(lane_mat3 *Matrix, lane_u32 Row, lane_u32 Column, f32 Value)
+void SetMatrixElement(lane_mat3 *Matrix, u32 Row, u32 Column, lane_f32 Value)
 {
-    lane_u32 Index = 3 * Row + Column;
+    u32 Index = 3 * Row + Column;
     Matrix->Elements[Index] = Value;
 }
 
-void SetMatrixElement(lane_mat4 *Matrix, lane_u32 Row, lane_u32 Column, f32 Value)
+void SetMatrixElement(lane_mat4 *Matrix, u32 Row, u32 Column, lane_f32 Value)
 {
     s32 Index = 4 * Row + Column;
     Matrix->Elements[Index] = Value;
@@ -847,7 +879,7 @@ lane_mat3 lane_Mat3F(lane_f32 Value)
     return Result;
 }
 
-lane_mat4 lane_Mat4F(f32 Value)
+lane_mat4 lane_Mat4F(lane_f32 Value)
 {
     lane_mat4 Result ={};
     SetMatrixElement(&Result, 0, 0, Value);
@@ -880,7 +912,7 @@ lane_mat2 SubMatrix(lane_mat3 Matrix, u8 Row, u8 Column)
     {
         for(u8 ColumnIndex=0; ColumnIndex < 2; ColumnIndex++)
         {
-            f32 Value = GetMatrixElement(Matrix, RowIndices[RowIndex], ColumnIndices[ColumnIndex]);
+            lane_f32 Value = GetMatrixElement(Matrix, RowIndices[RowIndex], ColumnIndices[ColumnIndex]);
             SetMatrixElement(&Result, RowIndex, ColumnIndex, Value);
         }     
     }
@@ -910,7 +942,7 @@ lane_mat3 SubMatrix(lane_mat4 Matrix, u8 Row, u8 Column)
     {
         for(u8 ColumnIndex=0; ColumnIndex < 3; ColumnIndex++)
         {
-            f32 Value = GetMatrixElement(Matrix, RowIndices[RowIndex], ColumnIndices[ColumnIndex]);
+            lane_f32 Value = GetMatrixElement(Matrix, RowIndices[RowIndex], ColumnIndices[ColumnIndex]);
             SetMatrixElement(&Result, RowIndex, ColumnIndex, Value);
         }     
     }
@@ -926,7 +958,7 @@ lane_mat2 operator*(lane_mat2 &A, lane_mat2 &B)
     {
         for(u8 ColumnIndex=0; ColumnIndex<2; ColumnIndex++)
         {
-            f32 Value =   GetMatrixElement(A, RowIndex, 0) * GetMatrixElement(B, 0, ColumnIndex) 
+            lane_f32 Value =   GetMatrixElement(A, RowIndex, 0) * GetMatrixElement(B, 0, ColumnIndex) 
                         + GetMatrixElement(A, RowIndex, 1) * GetMatrixElement(B, 1, ColumnIndex);
 
             SetMatrixElement(&Result, RowIndex, ColumnIndex, Value);
@@ -944,7 +976,7 @@ lane_mat3 operator*(lane_mat3 &A, lane_mat3 &B)
     {
         for(u8 ColumnIndex=0; ColumnIndex<3; ColumnIndex++)
         {
-            f32 Value =   GetMatrixElement(A, RowIndex, 0) * GetMatrixElement(B, 0, ColumnIndex) 
+            lane_f32 Value =   GetMatrixElement(A, RowIndex, 0) * GetMatrixElement(B, 0, ColumnIndex) 
                         + GetMatrixElement(A, RowIndex, 1) * GetMatrixElement(B, 1, ColumnIndex) 
                         + GetMatrixElement(A, RowIndex, 2) * GetMatrixElement(B, 2, ColumnIndex);
             SetMatrixElement(&Result, RowIndex, ColumnIndex, Value);
@@ -963,11 +995,11 @@ lane_mat4 operator*(lane_mat4 &MatrixA, lane_mat4 &MatrixB)
     {
         for(u8 ColumnIndex=0; ColumnIndex<4; ColumnIndex++)
         {
-            f32 A = GetMatrixElement(MatrixA, RowIndex, 0) * GetMatrixElement(MatrixB, 0, ColumnIndex);
-            f32 B = GetMatrixElement(MatrixA, RowIndex, 1) * GetMatrixElement(MatrixB, 1, ColumnIndex);
-            f32 C = GetMatrixElement(MatrixA, RowIndex, 2) * GetMatrixElement(MatrixB, 2, ColumnIndex);
-            f32 D = GetMatrixElement(MatrixA, RowIndex, 3) * GetMatrixElement(MatrixB, 3, ColumnIndex);
-            f32 Value = A + B + C + D;
+            lane_f32 A = GetMatrixElement(MatrixA, RowIndex, 0) * GetMatrixElement(MatrixB, 0, ColumnIndex);
+            lane_f32 B = GetMatrixElement(MatrixA, RowIndex, 1) * GetMatrixElement(MatrixB, 1, ColumnIndex);
+            lane_f32 C = GetMatrixElement(MatrixA, RowIndex, 2) * GetMatrixElement(MatrixB, 2, ColumnIndex);
+            lane_f32 D = GetMatrixElement(MatrixA, RowIndex, 3) * GetMatrixElement(MatrixB, 3, ColumnIndex);
+            lane_f32 Value = A + B + C + D;
             SetMatrixElement(&Result, RowIndex, ColumnIndex, Value);
         }
     }
@@ -1009,41 +1041,41 @@ lane_v4 operator*(lane_mat4 &Matrix, lane_v4 &Vector)
     return Result;
 }
 
-f32 Determinant(lane_mat2 Input)
+lane_f32 Determinant(lane_mat2 Input)
 {
-    f32 Result = 0;
+    lane_f32 Result = LaneF32FromF32(0);
 
-    f32 a = GetMatrixElement(Input, 0, 0);
-    f32 b = GetMatrixElement(Input, 0, 1);
-    f32 c = GetMatrixElement(Input, 1, 0);
-    f32 d = GetMatrixElement(Input, 1, 1);
+    lane_f32 a = GetMatrixElement(Input, 0, 0);
+    lane_f32 b = GetMatrixElement(Input, 0, 1);
+    lane_f32 c = GetMatrixElement(Input, 1, 0);
+    lane_f32 d = GetMatrixElement(Input, 1, 1);
 
     Result = a * d - b * c;
     return Result;
 }
 
-f32 Determinant(lane_mat3 Input)
+lane_f32 Determinant(lane_mat3 Input)
 {
    //Find cofactors
-    f32 DetA = Determinant(SubMatrix(Input, 0, 0));
-    f32 DetB = Determinant(SubMatrix(Input, 0, 1));
-    f32 DetC = Determinant(SubMatrix(Input, 0, 2));
+    lane_f32 DetA = Determinant(SubMatrix(Input, 0, 0));
+    lane_f32 DetB = Determinant(SubMatrix(Input, 0, 1));
+    lane_f32 DetC = Determinant(SubMatrix(Input, 0, 2));
 
     //Find determinant
-    f32 Result = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC;
+    lane_f32 Result = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC;
     return Result;
 }
 
-f32 Determinant(lane_mat4 Input)
+lane_f32 Determinant(lane_mat4 Input)
 {
    //Find cofactors
-    f32 DetA = Determinant(SubMatrix(Input, 0, 0));
-    f32 DetB = Determinant(SubMatrix(Input, 0, 1));
-    f32 DetC = Determinant(SubMatrix(Input, 0, 2));
-    f32 DetD = Determinant(SubMatrix(Input, 0, 3));
+    lane_f32 DetA = Determinant(SubMatrix(Input, 0, 0));
+    lane_f32 DetB = Determinant(SubMatrix(Input, 0, 1));
+    lane_f32 DetC = Determinant(SubMatrix(Input, 0, 2));
+    lane_f32 DetD = Determinant(SubMatrix(Input, 0, 3));
 
     //Find determinant
-    f32 Result = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC - GetMatrixElement(Input, 0, 3) * DetD;
+    lane_f32 Result = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC - GetMatrixElement(Input, 0, 3) * DetD;
     return Result;
 }
 
@@ -1051,15 +1083,15 @@ lane_mat2 Inverse(lane_mat2 Input)
 {
     lane_mat2 Result = {};
 
-    f32 OneOverDet = 1.0f / Determinant(Input);
+    lane_f32 OneOverDet = 1.0f / Determinant(Input);
     
     
     lane_mat2 SwappedMatrix = {};
     
-    f32 a = GetMatrixElement(Input, 0, 0);
-    f32 b = GetMatrixElement(Input, 0, 1);
-    f32 c = GetMatrixElement(Input, 1, 0);
-    f32 d = GetMatrixElement(Input, 1, 1);
+    lane_f32 a = GetMatrixElement(Input, 0, 0);
+    lane_f32 b = GetMatrixElement(Input, 0, 1);
+    lane_f32 c = GetMatrixElement(Input, 1, 0);
+    lane_f32 d = GetMatrixElement(Input, 1, 1);
 
     SetMatrixElement(&SwappedMatrix, 0, 0,  d);
     SetMatrixElement(&SwappedMatrix, 0, 1, -b);
@@ -1073,13 +1105,13 @@ lane_mat2 Inverse(lane_mat2 Input)
 lane_mat3 Inverse(lane_mat3 Input)
 {
     //Find cofactors
-    f32 DetA = Determinant(SubMatrix(Input, 0, 0));
-    f32 DetB = Determinant(SubMatrix(Input, 0, 1));
-    f32 DetC = Determinant(SubMatrix(Input, 0, 2));
+    lane_f32 DetA = Determinant(SubMatrix(Input, 0, 0));
+    lane_f32 DetB = Determinant(SubMatrix(Input, 0, 1));
+    lane_f32 DetC = Determinant(SubMatrix(Input, 0, 2));
 
     //Find determinant
-    f32 MatrixDeterminant = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC;
-    f32 OneOverDeterminant = 1.0f / MatrixDeterminant;
+    lane_f32 MatrixDeterminant = GetMatrixElement(Input, 0, 0) * DetA - GetMatrixElement(Input, 0, 1) * DetB + GetMatrixElement(Input, 0, 2) * DetC;
+    lane_f32 OneOverDeterminant = 1.0f / MatrixDeterminant;
     //Build cofactor matrix
     lane_mat3 CofactorMatrix =  {};
 
@@ -1096,17 +1128,17 @@ lane_mat3 Inverse(lane_mat3 Input)
     {
         for(u8 ColumnIndex=0; ColumnIndex < 3; ColumnIndex++)
         {
-            f32 Cofactor = 0;
+            lane_f32 Cofactor = LaneF32FromF32(0);
             if(RowIndex==0 && ColumnIndex==0) Cofactor = DetA;
             if(RowIndex==0 && ColumnIndex==1) Cofactor = DetB;
             if(RowIndex==0 && ColumnIndex==2) Cofactor = DetC;
             else Cofactor = Determinant(SubMatrix(Input, RowIndex, ColumnIndex));
             
             
-            f32 Sign = GetMatrixElement(CofactorSigns, RowIndex, ColumnIndex);
-            Cofactor *= Sign;
+            lane_f32 Sign = GetMatrixElement(CofactorSigns, RowIndex, ColumnIndex);
+            Cofactor = Cofactor * Sign;
 
-            Cofactor *= OneOverDeterminant;
+            Cofactor = Cofactor * OneOverDeterminant;
 
             //Transposing in place!
             SetMatrixElement(&CofactorMatrix, ColumnIndex, RowIndex, Cofactor);
@@ -1116,6 +1148,7 @@ lane_mat3 Inverse(lane_mat3 Input)
     return CofactorMatrix;
 }
 
+#if LANE_WIDTH == 1
 glm::mat4 GlmFromlane_Mat4(lane_mat4 Input)
 {
     glm::mat4 Result;
@@ -1169,6 +1202,7 @@ lane_mat4 GlmTolane_Mat4(glm::mat4 Input)
 
     return Result;
 }
+#endif
 
 lane_mat4 Inverse(lane_mat4 Input)
 {
@@ -1312,7 +1346,7 @@ lane_mat4 Inverse(lane_mat4 Input)
 
 lane_mat3 Translate(lane_v2 Translation) 
 {
-    lane_mat3 Result = lane_Mat3F(1.0f);
+    lane_mat3 Result = lane_Mat3F(LaneF32FromF32(1.0f));
     SetMatrixElement(&Result, 0, 2, Translation.x);
     SetMatrixElement(&Result, 1, 2, Translation.y);
     return Result;
@@ -1320,7 +1354,7 @@ lane_mat3 Translate(lane_v2 Translation)
 
 lane_mat3 Scale(lane_v2 Size) 
 {
-    lane_mat3 Result = lane_Mat3F(1.0f);
+    lane_mat3 Result = lane_Mat3F(LaneF32FromF32(1.0f));
     SetMatrixElement(&Result, 0, 0, Size.x);
     SetMatrixElement(&Result, 1, 1, Size.y);
     return Result;
@@ -1328,11 +1362,11 @@ lane_mat3 Scale(lane_v2 Size)
 
 lane_mat3 Rotate(f32 Angle) 
 {
-    lane_mat3 Result = lane_Mat3F(1.0f);
-    SetMatrixElement(&Result, 0, 0, Cosine(Angle));
-    SetMatrixElement(&Result, 0, 1, Sine(Angle));
-    SetMatrixElement(&Result, 1, 0, -Sine(Angle));
-    SetMatrixElement(&Result, 1, 1, Cosine(Angle));
+    lane_mat3 Result = lane_Mat3F(LaneF32FromF32(1.0f));
+    // SetMatrixElement(&Result, 0, 0, Cosine(Angle));
+    // SetMatrixElement(&Result, 0, 1, Sine(Angle));
+    // SetMatrixElement(&Result, 1, 0, -Sine(Angle));
+    // SetMatrixElement(&Result, 1, 1, Cosine(Angle));
     return Result;
 }
 
@@ -1342,26 +1376,44 @@ lane_mat4 LookAt(lane_v3 CameraPosition, lane_v3 Center, lane_v3 UpVector)
     lane_v3 Z = NOZ(Center - CameraPosition);
     UpVector = V3(0,1,0);
     
-    if(Abs(Inner(UpVector, Z)) > 0.99)
-    {
-        UpVector = V3(0,0,1);
-    }
+    lane_u32 IsTooCloseMask = Abs(Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
+    ConditionalAssign(&UpVector, IsTooCloseMask, V3(0,0,1));
     
-    if(Abs(Inner(UpVector, Z)) > 0.99)
-    {
-        UpVector = V3(1,0,0);
-    }
+    IsTooCloseMask = Abs(Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
+    ConditionalAssign(&UpVector, IsTooCloseMask, V3(1,0,1));
 
 
     lane_v3 X = NOZ(Cross(UpVector, Z));
     lane_v3 Y = NOZ(Cross(Z, X));
 
-    lane_mat4 Result = {
-        X.x, Y.x, Z.x, CameraPosition.x,
-        X.y, Y.y, Z.y, CameraPosition.y,
-        X.z, Y.z, Z.z, CameraPosition.z,
-        0  , 0  , 0  , 1
-    };
+    lane_mat4 Result = {};
+
+    SetMatrixElement(&Result, 0, 0, X.x);
+    SetMatrixElement(&Result, 1, 0, X.y);
+    SetMatrixElement(&Result, 2, 0, X.z);
+    SetMatrixElement(&Result, 3, 0, LaneF32FromF32(0));
+
+    SetMatrixElement(&Result, 0, 1, Y.x);
+    SetMatrixElement(&Result, 1, 1, Y.y);
+    SetMatrixElement(&Result, 2, 1, Y.z);
+    SetMatrixElement(&Result, 3, 1, LaneF32FromF32(0));
+    
+    SetMatrixElement(&Result, 0, 2, Z.x);
+    SetMatrixElement(&Result, 1, 2, Z.y);
+    SetMatrixElement(&Result, 2, 2, Z.z);
+    SetMatrixElement(&Result, 3, 2, LaneF32FromF32(0));
+    
+    SetMatrixElement(&Result, 0, 3, CameraPosition.x);
+    SetMatrixElement(&Result, 1, 3, CameraPosition.y);
+    SetMatrixElement(&Result, 2, 3, CameraPosition.z);
+    SetMatrixElement(&Result, 3, 3, LaneF32FromF32(1));
+    
+    // lane_mat4 Result = {
+    //     X.x, Y.x, Z.x, CameraPosition.x,
+    //     X.y, Y.y, Z.y, CameraPosition.y,
+    //     X.z, Y.z, Z.z, CameraPosition.z,
+    //     0  , 0  , 0  , 1
+    // };
 
     return Result;
 }
@@ -1369,7 +1421,7 @@ lane_mat4 LookAt(lane_v3 CameraPosition, lane_v3 Center, lane_v3 UpVector)
 lane_v3 TransformPosition(lane_mat4 Matrix, lane_v3 Vector)
 {
     lane_v3 Result = {};
-    lane_v4 ResultV4 = Matrix * V4(Vector.x, Vector.y, Vector.z, 1.0f);
+    lane_v4 ResultV4 = Matrix * LaneV4(Vector.x, Vector.y, Vector.z, LaneF32FromF32(1.0f));
 
     Result.x = ResultV4.x;
     Result.y = ResultV4.y;
@@ -1381,7 +1433,7 @@ lane_v3 TransformPosition(lane_mat4 Matrix, lane_v3 Vector)
 lane_v3 TransformDirection(lane_mat4 Matrix, lane_v3 Vector)
 {
     lane_v3 Result = {};
-    lane_v4 ResultV4 = Matrix * V4(Vector.x, Vector.y, Vector.z, 0.0f);
+    lane_v4 ResultV4 = Matrix * LaneV4(Vector.x, Vector.y, Vector.z, LaneF32FromF32(0.0f));
 
     Result.x = ResultV4.x;
     Result.y = ResultV4.y;
@@ -1392,24 +1444,24 @@ lane_v3 TransformDirection(lane_mat4 Matrix, lane_v3 Vector)
 
 lane_mat4 Identity()
 {
-    return lane_Mat4F(1.0f);
+    return lane_Mat4F(LaneF32FromF32(1.0f));
 }
 
 lane_mat4 OrthoBasisFromNormal(lane_v3 Normal)
 {
     lane_v3 UpVector = V3(0,1,0);
     
-    if(Abs(Inner(UpVector, Normal)) > 0.99)
-    {
-        UpVector = V3(0,0,1);
-    }
+    // if(Abs(Inner(UpVector, Normal)) > 0.99)
+    // {
+    //     UpVector = V3(0,0,1);
+    // }
     
-    if(Abs(Inner(UpVector, Normal)) > 0.99)
-    {
-        UpVector = V3(1,0,0);
-    }
+    // if(Abs(Inner(UpVector, Normal)) > 0.99)
+    // {
+    //     UpVector = V3(1,0,0);
+    // }
 
-    lane_mat4 Result = LookAt({0.0f, 0.0f, 0.0f}, Normal, UpVector);
+    lane_mat4 Result = LookAt(V3(0.0f, 0.0f, 0.0f), Normal, UpVector);
 
     return Result;
 }

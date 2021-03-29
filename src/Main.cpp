@@ -128,6 +128,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_v3 ReflectedDirection = Reflect(LocalRayDirection, V3(0,0,1));
         ReflectedDirection =NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
         lane_f32 CosineTerm = Abs(Inner(ReflectedDirection, V3(0,0,1)));
+        // lane_f32 CosineTerm = LaneF32FromF32(1.0f);
 
         *RayDirection = TransformDirection(Transform, ReflectedDirection);
 
@@ -189,7 +190,7 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 
 camera CreateCamera(u32 Width, u32 Height)
 {
-    lane_f32 FilmDistance = LaneF32FromF32 (1.0f);
+    f32 FilmDistance =  (1.0f);
     lane_v3 CameraPosition = V3(0, 3, 10);
     lane_v3 FilmCenter = V3(0, 0, FilmDistance);
 

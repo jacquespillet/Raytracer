@@ -8,7 +8,7 @@ struct hit {
 };
 
 void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
-    lane_v3 PlaneN = LaneV3FromV3(Plane->N);
+    lane_v3 PlaneN = LaneLaneV3FromLaneV3(Plane->N);
     lane_f32 PlaneD = LaneF32FromF32(Plane->d);
 
     lane_f32 Denom = Inner(PlaneN, RayDirection);
@@ -38,7 +38,7 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
 b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
 
     lane_f32 Spherer = LaneF32FromF32( Sphere->r);
-    lane_v3 SphereP = TransformPosition(Sphere->Transform, V3(0,0,0));
+    lane_v3 SphereP = TransformPosition(Sphere->Transform, LaneV3(0,0,0));
 
     lane_v3 SphereRelativeOrigin =  RayOrigin - SphereP;
     lane_f32 a = Inner(RayDirection, RayDirection);
@@ -89,9 +89,9 @@ lane_u32 HitAABB(lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 MinDistance, 
     lane_u32 LaneMask = LaneU32FromU32(0xffffffff);
 
     for(int i=0; i<3; i++) {
-        lane_f32 InvD = LaneF32FromF32(1.0f) / V3Component(RayDirection, i);
-        lane_f32 t0 = (V3Component(AABB.min, i) - V3Component(RayOrigin, i)) * InvD;
-        lane_f32 t1 = (V3Component(AABB.max, i) - V3Component(RayOrigin, i)) * InvD;
+        lane_f32 InvD = LaneF32FromF32(1.0f) / LaneV3Component(RayDirection, i);
+        lane_f32 t0 = (LaneV3Component(AABB.min, i) - LaneV3Component(RayOrigin, i)) * InvD;
+        lane_f32 t1 = (LaneV3Component(AABB.max, i) - LaneV3Component(RayOrigin, i)) * InvD;
 
         lane_u32 InvDMask = InvD < 0.0f;
         ConditionalAssign(&tmp, InvDMask, t0);

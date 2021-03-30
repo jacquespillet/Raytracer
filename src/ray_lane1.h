@@ -17,7 +17,7 @@ struct lane_v4
     lane_f32 x, y, z, w;
 };
 
-internal lane_f32 V3Component(lane_v3 Vector, lane_u32 ComponentIndex) {
+internal lane_f32 LaneV3Component(lane_v3 Vector, lane_u32 ComponentIndex) {
     return *( ((lane_f32*)(&Vector)) + ComponentIndex);
 }
 
@@ -69,7 +69,11 @@ internal lane_f32 LaneF32FromU32(lane_u32 V) {
 internal lane_f32 LaneF32FromF32(f32 Repl) {
     lane_f32 Result = Repl;
     return Result;
+}
 
+internal lane_u32 LaneU32FromF32(lane_f32 Repl) {
+    lane_u32 Result = (lane_u32)Repl;
+    return Result;
 }
 
 
@@ -125,18 +129,39 @@ internal lane_f32 Log(lane_f32 Input)
     return std::log(Input);
 }
 
-lane_f32 Cosine(lane_f32 Input)
+internal lane_f32 Exp(lane_f32 Input)
+{
+    return std::exp(Input);
+}
+
+internal lane_f32 Cos(lane_f32 Input)
 {
     return cos(Input);
 }
 
-lane_f32 Sine(lane_f32 Input)
+internal lane_f32 Sine(lane_f32 Input)
 {
     return sin(Input);
 }
 
-lane_f32 Tangent(lane_f32 Input)
+internal lane_f32 Tangent(lane_f32 Input)
 {
     return tan(Input);
+}
+
+
+internal lane_f32 Floor(lane_f32 Input)
+{
+    return floor(Input);
+}
+
+lane_u32 AndNot(lane_u32 A, lane_u32 B=0) 
+{
+    return !A;
+}
+
+lane_u32 Not(lane_u32 A) 
+{
+    return !A;
 }
 

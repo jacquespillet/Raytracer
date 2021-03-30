@@ -12,8 +12,8 @@ plastic_material PlasticMaterial()
     // Result.Microfacets = (microfacet_reflection*) malloc(sizeof(microfacet_reflection));
     // Result.Lambertian  = (lambertian_reflection*) malloc(sizeof(lambertian_reflection));
     
-    Result.Microfacets = MicrofacetReflection(V3(1,0,0), 0.01f);
-    Result.Lambertian = LambertianReflection(V3(0.4, 0.2, 0.8));
+    Result.Microfacets = MicrofacetReflection(LaneV3(0.7,0.7,0.7), LaneF32FromF32(0.1f));
+    Result.Lambertian = LambertianReflection(LaneV3(0.7, 0.7, 0.7));
 
     return Result;
 }
@@ -24,34 +24,49 @@ void DeletePlasticMaterial(plastic_material *PlasticMaterial)
     // free(PlasticMaterial.Lambertian);
 }
 
-lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo, lane_v3 * wi,  lane_v2 &u, f32 *pdf)  {
+lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo, lane_v3 * wi,  lane_v2 &u, lane_f32 BxDFSample, lane_f32 *pdf)  {
     //Check if there is at least one matching bxdf in the stored bxdfs
-    u32 matchingComps = 2;
+    lane_u32 matchingComps = LaneU32FromU32(2);
+    lane_f32 matchingCompsFloat = LaneF32FromF32(2.0f);
     
     //If there is one matching, takes a random one in the list of all the matching bxdfs
-    u32 comp = Min((int)std::floor(u.x * matchingComps), matchingComps-1);
+    // lane_u32 comp = LaneU32FromF32(Min(Floor(u.x * matchingCompsFloat), matchingCompsFloat-LaneF32FromF32(1.0f)));
+    lane_u32 comp = LaneU32FromF32((Min(Floor((BxDFSample) * matchingCompsFloat), matchingCompsFloat - LaneF32FromF32(1.0f))));
     
-    *pdf=0;
-    lane_v3 f;
-    if(comp==0) //Lambertian
-    {
-        lane_v3 f = LambertianReflection_Sample_f(&PlasticMaterial->Lambertian, wo, wi, u, pdf);
-    }
-    else //Microfacets
-    {
-        lane_v3 f = MicroFacetReflection_Sample_f(&PlasticMaterial->Microfacets, wo, wi, u, pdf);
-    }   
+    *pdf=LaneF32FromF32(0.0f);
+
+    lane_v3 LambertianWi, MicrofacetWi;
+    lane_f32 LambertianPd = LaneF32FromF32(0.0f);
+    lane_f32 MicrofacetPdf = LaneF32FromF32(0.0f);
+
+    lane_v3 Result = {};
+
+    lane_f32 pdfl, pdfm;
+    lane_v3 wil, wim;
+    lane_v3 brdfl, brdfm;
+    brdfl = LambertianReflection_Sample_f(&PlasticMaterial->Lambertian, wo, &wil, u, &pdfl);
+    brdfm = MicroFacetReflection_Sample_f(&PlasticMaterial->Microfacets, wo, &wim, u, &pdfm);
+
+    lane_u32 IsLambertianMask = (comp == LaneU32FromU32(0));
+    lane_u32 IsMicrofacetMask = (comp == LaneU32FromU32(1));
     
-    if(*pdf==0) return V3(0,0,0);
+    *wi = wim;
+    //ConditionalAssign(wi, IsLambertianMask, wil);
+    
+    lane_u32 NullPdfmMask = (pdfm==LaneF32FromF32(0.0f)) & IsMicrofacetMask;
+    lane_u32 NullPdflMask = (pdfl==LaneF32FromF32(0.0f)) & IsLambertianMask;
+    lane_u32 NullPdfMask = NullPdfmMask |  NullPdflMask;
+    
+    //Calculating pdf for this direction 
+    
+    *pdf = pdfl + pdfm;
+    *pdf = *pdf / matchingCompsFloat;
+    
+    //Calculating brdf for this direction 
+    Result = brdfl + brdfm;  
     
     
-    *pdf += LambertianReflection_Pdf(&PlasticMaterial->Lambertian, wo, *wi);
-    *pdf += MicroFacetReflection_Pdf(&PlasticMaterial->Microfacets, wo, *wi);
-    *pdf /= matchingComps;
-    
-    f=V3(0,0,0);
-    f += LambertianReflection_f(&PlasticMaterial->Lambertian, wo, *wi);            
-    f += MicroFacetReflection_f(&PlasticMaterial->Microfacets, wo, *wi);            
-    
-    return f;        
+    ConditionalAssign(&Result, NullPdfMask, LaneV3(0,0,0));
+
+    return Result;        
 }

@@ -13,7 +13,7 @@ set linkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib opengl3
 
 IF NOT EXIST .\build mkdir .\build
 pushd .\build
-cl.exe %compilerFlags% ..\src\Main.cpp /link %linkerFlags%
+"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29910\bin\Hostx64\x64\cl.exe" %compilerFlags% ..\src\Main.cpp /link %linkerFlags%
 @REM Main.exe
 @REM start test.bmp
 popd

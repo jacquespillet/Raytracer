@@ -177,6 +177,13 @@ internal lane_f32 LaneF32FromU32(lane_u32 A) {
 }
 
 
+internal lane_u32 LaneU32FromF32(lane_f32 A) {
+    lane_u32 Result;
+    Result.V = _mm256_cvtps_epi32(A.V);
+    return Result;
+}
+
+
 internal lane_f32 LaneF32FromU32(u32 Repl) {
     lane_f32 Result;
     Result.V = _mm256_set1_ps((f32)Repl);
@@ -295,5 +302,39 @@ internal lane_f32 Abs(lane_f32 A) {
     lane_u32 Mask = A <= LaneF32FromF32(0.0f);
     lane_f32 Result = A;
     ConditionalAssign(&Result, Mask, LaneF32FromF32(-1.0f) * A);
+    return Result;
+}
+
+internal lane_f32 Log(lane_f32 A) {
+    lane_f32 Result;
+    Result.V = _mm256_log_ps(A.V);
+    return Result;
+}
+
+internal lane_f32 Exp(lane_f32 A) {
+    lane_f32 Result;
+    
+    Result.V = _mm256_exp_ps(A.V);
+    return Result;
+}
+
+internal lane_f32 Cos(lane_f32 A) {
+    lane_f32 Result;
+    
+    Result.V = _mm256_cos_ps (A.V);
+    return Result;
+}
+
+internal lane_f32 Sine(lane_f32 A) {
+    lane_f32 Result;
+    
+    Result.V = _mm256_sin_ps (A.V);
+    return Result;
+}
+
+internal lane_f32 Floor(lane_f32 A) {
+    lane_f32 Result;
+    
+    Result.V = _mm256_floor_ps (A.V);
     return Result;
 }

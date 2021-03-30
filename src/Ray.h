@@ -139,6 +139,22 @@ public:
     aabb AABB;
 };
 
+struct triangle
+{
+public:
+    lane_mat4 Transform;
+
+    v3 V1;
+    v3 LaneV2;
+    v3 LaneV3;
+
+    v3 Normal;
+
+    u32 MatIndex;
+
+    aabb AABB;
+};
+
 struct volume
 {
 public:
@@ -149,19 +165,45 @@ public:
 internal sphere Sphere(v3 P, f32 r, u32 MatIndex) {
     sphere Result = {};
     
-    Result.Transform = Translate(Identity(), V3(P.x, P.y, P.z));
+    Result.Transform = Translate(Identity(), LaneV3(P.x, P.y, P.z));
     
     
     Result.r = r;
     Result.MatIndex = MatIndex;
 
     Result.AABB = {
-        V3(-r + P.x, -r + P.y, -r + P.z),
-        V3(r + P.x, r + P.y, r + P.z)
+        LaneV3(-r + P.x, -r + P.y, -r + P.z),
+        LaneV3(r + P.x, r + P.y, r + P.z)
     };
 
     return Result;
 }
+
+internal triangle Triangle(v3 V1, v3 LaneV2, v3 LaneV3, lane_mat4 Transform, u32 MatIndex) {
+    triangle Result = {};
+    
+    Result.Transform = Transform;
+    
+    Result.V1 = V1;
+    Result.LaneV2 = LaneV2;
+    Result.LaneV3 = LaneV3;
+
+    Result.MatIndex = MatIndex;
+
+    // v3 WorldV1 = TransformPosition(Transform, V1);
+    // v3 WorldLaneV2 = TransformPosition(Transform, LaneV2);
+    // v3 WorldLaneV3 = TransformPosition(Transform, LaneV3);
+
+    // v3 MinPosition = Min(WorldV1, Min(WorldLaneV2, WorldLaneV3));
+    // v3 MaxPosition = Max(WorldV1, Max(WorldLaneV2, WorldLaneV3));
+
+    // Result.AABB = {
+    //     LaneLaneV3FromLaneV3(MinPosition), LaneLaneV3FromLaneV3(MaxPosition)
+    // };
+
+    return Result;    
+}
+
 
 struct bvh {
 public:

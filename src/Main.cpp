@@ -88,7 +88,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         
         lane_v3 RandomBounce = Lane_NOZ(LaneV3(0,0,1) + RandomInSphere(Series));
-        lane_f32 CosineTerm = Abs(Lane_Inner(RandomBounce, LaneV3(0,0,1)));
+        lane_f32 CosineTerm = Lane_Abs(Lane_Inner(RandomBounce, LaneV3(0,0,1)));
         *RayDirection = Lane_NOZ(Lane_TransformDirection(Transform, RandomBounce));
 
         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
@@ -148,7 +148,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_u32 pdfGT0 = pdf > 0;
         lane_u32 localMask = MetalicMaterialMask & pdfGT0;
 
-            lane_v3 MetalicAttenuation = brdf * Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
+            lane_v3 MetalicAttenuation = brdf * Lane_Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
             ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
             ConditionalAssign(Attenuation, localMask, MetalicAttenuation);
 #endif
@@ -411,8 +411,8 @@ internal b32 RenderTile(work_queue *Queue) {
 
 
 internal aabb SurroundAABBs(aabb A, aabb B) {
-    lane_v3 SmallBound = { Min(A.min.x, B.min.x), Min(A.min.y, B.min.y), Min(A.min.z, B.min.z) };
-    lane_v3 BigBound = { Max(A.max.x, B.max.x), Max(A.max.y, B.max.y), Max(A.max.z, B.max.z) };
+    lane_v3 SmallBound = { Lane_Min(A.min.x, B.min.x), Lane_Min(A.min.y, B.min.y), Lane_Min(A.min.z, B.min.z) };
+    lane_v3 BigBound = { Lane_Max(A.max.x, B.max.x), Lane_Max(A.max.y, B.max.y), Lane_Max(A.max.z, B.max.z) };
     return { SmallBound, BigBound };
 }
 
@@ -522,6 +522,9 @@ int main(int argCount, char **args) {
         // ,{{0, 0, -1},{2}, 2} 
     };
  
+    triangle Triangles[] {
+        Triangle({-10, 0, 0}, {0, 10, 0}, {10, 0, 0}, Identity(), 3)
+    };
  
     sphere Spheres[] {
         Sphere({-1,  -0.7, 0}, 0.5, 4),

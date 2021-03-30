@@ -31,7 +31,7 @@ lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo,
     
     //If there is one matching, takes a random one in the list of all the matching bxdfs
     // lane_u32 comp = LaneU32FromF32(Min(Floor(u.x * matchingCompsFloat), matchingCompsFloat-LaneF32FromF32(1.0f)));
-    lane_u32 comp = LaneU32FromF32((Min(Floor((BxDFSample) * matchingCompsFloat), matchingCompsFloat - LaneF32FromF32(1.0f))));
+    lane_u32 comp = LaneU32FromF32((Lane_Min(Lane_Floor((BxDFSample) * matchingCompsFloat), matchingCompsFloat - LaneF32FromF32(1.0f))));
     
     *pdf=LaneF32FromF32(0.0f);
 

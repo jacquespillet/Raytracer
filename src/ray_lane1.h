@@ -31,17 +31,17 @@ internal void ConditionalAssign(lane_f32 *Dest, lane_u32 Mask, lane_f32 Source) 
 }
 
 
-internal lane_f32 Max(lane_f32 A, lane_f32 B) {
+internal lane_f32 Lane_Max(lane_f32 A, lane_f32 B) {
     lane_f32 Result = ((A>B) ? A : B);
     return Result;
 }
 
-internal lane_f32 Abs(lane_f32 A) {
+internal lane_f32 Lane_Abs(lane_f32 A) {
     lane_f32 Result = (A < 0) ? -A : A;
     return Result;
 }
 
-internal lane_f32 Min(lane_f32 A, lane_f32 B) {
+internal lane_f32 Lane_Min(lane_f32 A, lane_f32 B) {
     lane_f32 Result = ((A<B) ? A : B);
     return Result;
 }
@@ -124,33 +124,33 @@ internal lane_f32 GatherU32_(void *BasePtr, u32 Stride, lane_u32 Index) {
 // }
 
 #include <cmath>
-internal lane_f32 Log(lane_f32 Input)
+internal lane_f32 Lane_Log(lane_f32 Input)
 {
     return std::log(Input);
 }
 
-internal lane_f32 Exp(lane_f32 Input)
+internal lane_f32 Lane_Exp(lane_f32 Input)
 {
     return std::exp(Input);
 }
 
-internal lane_f32 Cos(lane_f32 Input)
+internal lane_f32 Lane_Cos(lane_f32 Input)
 {
     return cos(Input);
 }
 
-internal lane_f32 Sine(lane_f32 Input)
+internal lane_f32 Lane_Sine(lane_f32 Input)
 {
     return sin(Input);
 }
 
-internal lane_f32 Tangent(lane_f32 Input)
+internal lane_f32 Lane_Tangent(lane_f32 Input)
 {
     return tan(Input);
 }
 
 
-internal lane_f32 Floor(lane_f32 Input)
+internal lane_f32 Lane_Floor(lane_f32 Input)
 {
     return floor(Input);
 }
@@ -165,3 +165,7 @@ lane_u32 Not(lane_u32 A)
     return !A;
 }
 
+inline f32 Lane_SquareRoot(f32 A) {
+    f32 Result = (f32)sqrt(A);
+    return Result;
+}

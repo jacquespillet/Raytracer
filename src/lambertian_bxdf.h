@@ -5,7 +5,7 @@ lane_v2 ConcentricSampleDisk(lane_v2 &u) {
     lane_v2 uOffset = LaneF32FromF32(2.0f) * u - LaneV2(LaneF32FromF32(1.0f), LaneF32FromF32(1.0f));
     lane_u32 OffsetIs0 = (uOffset.x == LaneF32FromF32(0.0f) & uOffset.y==LaneF32FromF32(0.0f));
     
-    lane_u32 OffsetXGtOffsetY = Abs(uOffset.x) > Abs(uOffset.y);
+    lane_u32 OffsetXGtOffsetY = Lane_Abs(uOffset.x) > Lane_Abs(uOffset.y);
 
     lane_f32 theta = LaneF32FromF32(PiOver2) - LaneF32FromF32(PiOver4) * (uOffset.x / uOffset.y);
     lane_f32 r =  r = uOffset.y;
@@ -13,7 +13,7 @@ lane_v2 ConcentricSampleDisk(lane_v2 &u) {
     ConditionalAssign(&r, OffsetXGtOffsetY, uOffset.x);
     ConditionalAssign(&theta, OffsetXGtOffsetY, PiOver4 * (uOffset.y / uOffset.x));
     
-    Result = r * LaneV2(Cos(theta), Sine(theta));
+    Result = r * LaneV2(Lane_Cos(theta), Lane_Sine(theta));
     ConditionalAssign(&Result, OffsetIs0, LaneV2(LaneF32FromF32(0.0f), LaneF32FromF32(0.0f)));
     
     return Result;
@@ -22,7 +22,7 @@ lane_v2 ConcentricSampleDisk(lane_v2 &u) {
 
 lane_v3 CosineSampleHemisphere(lane_v2 &u) {
     lane_v2 d = ConcentricSampleDisk(u);
-    lane_f32 z = SquareRoot(Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) -d.x*d.x - d.y*d.y));
+    lane_f32 z = Lane_SquareRoot(Lane_Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) -d.x*d.x - d.y*d.y));
 
     return LaneV3(d.x, d.y, z);
 }

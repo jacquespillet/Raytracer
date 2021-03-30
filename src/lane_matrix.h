@@ -583,10 +583,10 @@ lane_mat4 Lane_LookAt(lane_v3 CameraPosition, lane_v3 Center, lane_v3 UpVector)
     lane_v3 Z = Lane_NOZ(Center - CameraPosition);
     UpVector = LaneV3(0,1,0);
     
-    lane_u32 IsTooCloseMask = Abs(Lane_Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
+    lane_u32 IsTooCloseMask = Lane_Abs(Lane_Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
     ConditionalAssign(&UpVector, IsTooCloseMask, LaneV3(0,0,1));
     
-    IsTooCloseMask = Abs(Lane_Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
+    IsTooCloseMask = Lane_Abs(Lane_Inner(UpVector, Z)) > LaneF32FromF32(0.99f); 
     ConditionalAssign(&UpVector, IsTooCloseMask, LaneV3(1,0,1));
 
 

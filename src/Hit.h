@@ -45,7 +45,7 @@ b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
     lane_f32 b = 2.0f * Lane_Inner(RayDirection, SphereRelativeOrigin);
     lane_f32 c = Lane_Inner(SphereRelativeOrigin, SphereRelativeOrigin) - Sphere->r * Sphere->r;
 
-    lane_f32 RootTerm = SquareRoot(b*b - 4.0f * a * c);
+    lane_f32 RootTerm = Lane_SquareRoot(b*b - 4.0f * a * c);
     
     lane_u32 RootMask = (RootTerm > Tolerance);
     if(!MaskIsZeroed(RootMask)) {

@@ -150,7 +150,7 @@ internal lane_u32 operator*(lane_u32 A, lane_u32 B) {
     return Result;
 }
 
-internal lane_f32 SquareRoot(lane_f32 A) {
+internal lane_f32 Lane_SquareRoot(lane_f32 A) {
     lane_f32 Result;
     Result.V = _mm_sqrt_ps(A.V);
     return Result;
@@ -230,13 +230,13 @@ internal void ConditionalAssign(lane_f32 *Dest, lane_u32 Mask, lane_f32 Source) 
                     );
 }
 
-internal lane_f32 Min(lane_f32 A, lane_f32 B) {
+internal lane_f32 Lane_Min(lane_f32 A, lane_f32 B) {
     lane_f32 Result;
     Result.V = _mm_min_ps(A.V, B.V);
     return Result;
 }
 
-internal lane_f32 Max(lane_f32 A, lane_f32 B) {
+internal lane_f32 Lane_Max(lane_f32 A, lane_f32 B) {
     lane_f32 Result;
     Result.V = _mm_max_ps(A.V, B.V);
     return Result;
@@ -284,41 +284,41 @@ internal u32 HorizontalAdd(lane_u32 A) {
     return (u32)Result;
 }
 
-internal lane_f32 Abs(lane_f32 A) {
+internal lane_f32 Lane_Abs(lane_f32 A) {
     lane_u32 Mask = A <= LaneF32FromF32(0.0f);
     lane_f32 Result = A;
     ConditionalAssign(&Result, Mask, LaneF32FromF32(-1.0f) * A);
     return Result;
 }
 
-internal lane_f32 Log(lane_f32 A) {
+internal lane_f32 Lane_Log(lane_f32 A) {
     lane_f32 Result;
     Result.V = _mm_log_ps(A.V);
     return Result;
 }
 
-internal lane_f32 Exp(lane_f32 A) {
+internal lane_f32 Lane_Exp(lane_f32 A) {
     lane_f32 Result;
     
     Result.V = _mm_exp_ps(A.V);
     return Result;
 }
 
-internal lane_f32 Cos(lane_f32 A) {
+internal lane_f32 Lane_Cos(lane_f32 A) {
     lane_f32 Result;
     
     Result.V = _mm_cos_ps (A.V);
     return Result;
 }
 
-internal lane_f32 Sine(lane_f32 A) {
+internal lane_f32 Lane_Sine(lane_f32 A) {
     lane_f32 Result;
     
     Result.V = _mm_sin_ps (A.V);
     return Result;
 }
 
-internal lane_f32 Floor(lane_f32 A) {
+internal lane_f32 Lane_Floor(lane_f32 A) {
     lane_f32 Result;
     
     Result.V = _mm_floor_ps (A.V);

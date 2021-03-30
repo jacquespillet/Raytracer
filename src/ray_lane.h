@@ -257,15 +257,6 @@ LaneV4(f32 X, f32 Y, f32 Z, f32 W)
 // }
 
 
-internal f32 Min(f32 A, f32 B) {
-    f32 Result = ((A<B) ? A : B);
-    return Result;
-}
-
-internal f32 Max(f32 A, f32 B) {
-    f32 Result = ((A>B) ? A : B);
-    return Result;
-}
 
 
 #endif
@@ -329,6 +320,16 @@ inline v3 V3(f32 X, f32 Y, f32 Z)
     return(Result);
 }
 
+internal f32 Min(f32 A, f32 B) {
+    f32 Result = ((A<B) ? A : B);
+    return Result;
+}
+
+internal f32 Max(f32 A, f32 B) {
+    f32 Result = ((A>B) ? A : B);
+    return Result;
+}
+
 internal v3 Min(v3 A, v3 B) {
     v3 Result = V3(Min(A.x, B.x), Min(A.y, B.y), Min(A.z, B.z));
     return Result;
@@ -352,17 +353,25 @@ Cross(v3 A, v3 B)
     return(Result);
 }
 
+#include <algorithm>
+f32 Abs(f32 In)
+{
+    return abs(In);
+}
+
+
+
 
 
 //Vector functions
 
 inline lane_f32 Lane_Clamp01(lane_f32 Value) {
-    lane_f32 Result = Min( Max(Value, LaneF32FromF32(0.0f)), LaneF32FromF32(1.0f));
+    lane_f32 Result = Lane_Min( Lane_Max(Value, LaneF32FromF32(0.0f)), LaneF32FromF32(1.0f));
     return Result;
 }
 
 inline lane_f32 Lane_Clamp(lane_f32 Value,lane_f32 MinValue, lane_f32 MaxValue) {
-    lane_f32 Result = Min( Max(Value, MinValue), MaxValue);
+    lane_f32 Result = Lane_Min( Lane_Max(Value, MinValue), MaxValue);
     return Result;
 }
 
@@ -583,7 +592,7 @@ LengthSq(v3 A)
 inline lane_f32
 Lane_Length(lane_v3 A)
 {
-    lane_f32 Result = SquareRoot(Lane_LengthSq(A));
+    lane_f32 Result = Lane_SquareRoot(Lane_LengthSq(A));
     return(Result);
 }
 
@@ -595,7 +604,7 @@ Lane_NOZ(lane_v3 A)
     
     lane_f32 LenSq = Lane_LengthSq(A);
     lane_u32 Mask = (LenSq > LaneF32FromF32(Square(0.0001f)));
-    ConditionalAssign(&Result, Mask, A * (1.0f / SquareRoot(LenSq)));
+    ConditionalAssign(&Result, Mask, A * (1.0f / Lane_SquareRoot(LenSq)));
     
     return(Result);
 }
@@ -663,7 +672,7 @@ inline lane_u32 Lane_Refract(lane_v3 IncidentVector, lane_v3 Normal, lane_f32 In
 
     
     lane_u32 DiscriminantPositiveMask = (Discriminant>0);
-    lane_v3 RefractedVector = IndexOfRefraction * (IncidentVectorNormalized - Normal * IncidentDotNormal) - Normal * SquareRoot(Discriminant);
+    lane_v3 RefractedVector = IndexOfRefraction * (IncidentVectorNormalized - Normal * IncidentDotNormal) - Normal * Lane_SquareRoot(Discriminant);
     ConditionalAssign(OutRefractedVector, DiscriminantPositiveMask, RefractedVector);
     
     return DiscriminantPositiveMask;
@@ -679,12 +688,12 @@ inline lane_f32 Lane_ShlickFresnelApproximation(lane_f32 Cosine, lane_f32 IndexO
 
 
 internal lane_v3 Lane_Min(lane_v3 A, lane_v3 B) {
-    lane_v3 Result = LaneV3(Min(A.x, B.x), Min(A.y, B.y), Min(A.z, B.z));
+    lane_v3 Result = LaneV3(Lane_Min(A.x, B.x), Lane_Min(A.y, B.y), Lane_Min(A.z, B.z));
     return Result;
 }
 
 internal lane_v3 Lane_Max(lane_v3 A, lane_v3 B) {
-    lane_v3 Result = LaneV3(Max(A.x, B.x), Max(A.y, B.y), Max(A.z, B.z));
+    lane_v3 Result = LaneV3(Lane_Max(A.x, B.x), Lane_Max(A.y, B.y), Lane_Max(A.z, B.z));
     return Result;
 }
 

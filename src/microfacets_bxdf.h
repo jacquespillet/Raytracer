@@ -3,10 +3,10 @@
 
 inline lane_f32 CosTheta( lane_v3 w) {return w.z;}
 inline lane_f32 Cos2Theta( lane_v3 w) {return w.z * w.z;}
-inline lane_f32 AbsCosTheta( lane_v3 w) {return Abs(w.z);}
+inline lane_f32 AbsCosTheta( lane_v3 w) {return Lane_Abs(w.z);}
 
-inline lane_f32 Sin2Theta( lane_v3 w) {return Max(LaneF32FromF32(0.0), LaneF32FromF32(1.0) - Cos2Theta(w));}
-inline lane_f32 SinTheta( lane_v3 w) {return SquareRoot(Sin2Theta(w));}
+inline lane_f32 Sin2Theta( lane_v3 w) {return Lane_Max(LaneF32FromF32(0.0), LaneF32FromF32(1.0) - Cos2Theta(w));}
+inline lane_f32 SinTheta( lane_v3 w) {return Lane_SquareRoot(Sin2Theta(w));}
 
 inline lane_f32 TanTheta( lane_v3 w) {return SinTheta(w) / CosTheta(w); }
 inline lane_f32 Tan2Theta( lane_v3 w) {return Sin2Theta(w) / Cos2Theta(w); }
@@ -42,12 +42,12 @@ inline lane_f32 Sin2Phi( lane_v3 w) {
 
 inline lane_f32 CosDPhi( lane_v3 wa,  lane_v3 wb) {
     return Lane_Clamp((wa.x * wb.x + wa.y * wb.y) /
-                 SquareRoot((wa.x * wa.x + wa.y * wa.y) *
+                 Lane_SquareRoot((wa.x * wa.x + wa.y * wa.y) *
                            (wb.x * wb.x + wb.y * wb.y)), LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f));
 }
 
 lane_v3 SphericalDirection(lane_f32 sinTheta, lane_f32 cosTheta, lane_f32 phi) {
-    return LaneV3(sinTheta * Cos(phi), sinTheta * Sine(phi), cosTheta);
+    return LaneV3(sinTheta * Lane_Cos(phi), sinTheta * Lane_Sine(phi), cosTheta);
 }
 
 inline lane_u32 SameHemisphere( lane_v3 &w,  lane_v3 &wp) {
@@ -70,7 +70,7 @@ lane_f32 BeckmannDistribution_D(beckmann_distribution Distribution, lane_v3 wh) 
     // lane_u32 laneMask = (isfinite(tan2Theta));
     
     lane_f32 cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
-    lane_f32 FinalValue = Exp(-tan2Theta * (Cos2Phi(wh) / (Distribution.AlphaX * Distribution.AlphaX) +
+    lane_f32 FinalValue = Lane_Exp(-tan2Theta * (Cos2Phi(wh) / (Distribution.AlphaX * Distribution.AlphaX) +
                                   Sin2Phi(wh) / (Distribution.AlphaY * Distribution.AlphaY))) /
            (Pi32 * Distribution.AlphaX * Distribution.AlphaY * cos4Theta);
 
@@ -81,11 +81,11 @@ lane_f32 BeckmannDistribution_D(beckmann_distribution Distribution, lane_v3 wh) 
 
 lane_f32 BeckmannDistribution_Lambda(beckmann_distribution Distribution, lane_v3 w) {
 
-    lane_f32 absTanTheta = Abs(TanTheta(w));
+    lane_f32 absTanTheta = Lane_Abs(TanTheta(w));
     
     lane_u32 laneMask = (absTanTheta < LaneF32FromF32(FLT_MAX) & absTanTheta > LaneF32FromF32(-FLT_MAX));
     // Compute _alpha_ for direction _w_
-    lane_f32 alpha = SquareRoot(Cos2Phi(w) * Distribution.AlphaX * Distribution.AlphaX + Sin2Phi(w) * Distribution.AlphaY * Distribution.AlphaY);
+    lane_f32 alpha = Lane_SquareRoot(Cos2Phi(w) * Distribution.AlphaX * Distribution.AlphaX + Sin2Phi(w) * Distribution.AlphaY * Distribution.AlphaY);
     
     lane_f32 a = LaneF32FromF32(1.0f) / (alpha * absTanTheta);
     
@@ -116,7 +116,7 @@ lane_v3 BeckmannDistribution_Sample_wh(beckmann_distribution Distribution, lane_
         //TODO(Jacques): Treat this case
         //if (Distribution.AlphaX == Distribution.AlphaY) {
         
-            lane_f32 logSample = Log(LaneF32FromF32(1.0f) - u.x);
+            lane_f32 logSample = Lane_Log(LaneF32FromF32(1.0f) - u.x);
             tan2Theta = -Distribution.AlphaX * Distribution.AlphaX * logSample;
             phi = u.y * 2 * Pi32;
         
@@ -135,8 +135,8 @@ lane_v3 BeckmannDistribution_Sample_wh(beckmann_distribution Distribution, lane_
         // }
 
         // Map sampled Beckmann angles to normal direction _wh_
-        lane_f32 cosTheta = 1 / SquareRoot(1 + tan2Theta);
-        lane_f32 sinTheta = SquareRoot(Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - cosTheta * cosTheta));
+        lane_f32 cosTheta = 1 / Lane_SquareRoot(1 + tan2Theta);
+        lane_f32 sinTheta = Lane_SquareRoot(Lane_Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - cosTheta * cosTheta));
         lane_v3 wh = SphericalDirection(sinTheta, cosTheta, phi);
         
         lane_u32 SameHemisphereMask = AndNot(SameHemisphere(wo, wh), LaneU32FromU32(0xffffffff));
@@ -152,7 +152,7 @@ lane_v3 BeckmannDistribution_Sample_wh(beckmann_distribution Distribution, lane_
 
 lane_f32 BeckmannDistribution_Pdf(beckmann_distribution Distribution, lane_v3 wo, lane_v3 wh) {
     if(!Distribution.SampleVisibleArea) {
-        return BeckmannDistribution_D(Distribution, wh) * BeckmannDistribution_G1(Distribution, wo) * Abs(Lane_Inner(wo, wh)) / AbsCosTheta(wo);
+        return BeckmannDistribution_D(Distribution, wh) * BeckmannDistribution_G1(Distribution, wo) * Lane_Abs(Lane_Inner(wo, wh)) / AbsCosTheta(wo);
     }else {
 
     }
@@ -179,14 +179,14 @@ lane_f32 EvaluateFresnelDielectric(fresnel_dielectric *Fresnel, lane_f32 cosThet
     // }
 
 
-    lane_f32 sinThetaI = SquareRoot(Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - cosThetaI*cosThetaI));
+    lane_f32 sinThetaI = Lane_SquareRoot(Lane_Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - cosThetaI*cosThetaI));
     lane_f32 sinThetaT = Fresnel->etaI / Fresnel->etaT * sinThetaI;
 
     lane_u32 SinThetaGTOneMask = (sinThetaT >= 1);
     
     //if(sinThetaT >= 1) return 1;
 
-    lane_f32 cosThetaT = SquareRoot(Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - sinThetaT * sinThetaT));
+    lane_f32 cosThetaT = Lane_SquareRoot(Lane_Max(LaneF32FromF32(0.0f), LaneF32FromF32(1.0f) - sinThetaT * sinThetaT));
 
 
     lane_f32 rParl = ((Fresnel->etaT * cosThetaI) - (Fresnel->etaI * cosThetaT)) / 

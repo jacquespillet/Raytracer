@@ -8,13 +8,13 @@ struct hit {
 };
 
 void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
-    lane_v3 PlaneN = LaneLaneV3FromLaneV3(Plane->N);
+    lane_v3 PlaneN = LaneV3FromLaneV3(Plane->N);
     lane_f32 PlaneD = LaneF32FromF32(Plane->d);
 
-    lane_f32 Denom = Inner(PlaneN, RayDirection);
+    lane_f32 Denom = Lane_Inner(PlaneN, RayDirection);
     lane_u32 DenomMask = ((Denom < -Tolerance) | (Denom > Tolerance));
     if(!MaskIsZeroed(DenomMask)) {
-        lane_f32 t = (-PlaneD - Inner(PlaneN, RayOrigin)) / Denom;
+        lane_f32 t = (-PlaneD - Lane_Inner(PlaneN, RayOrigin)) / Denom;
 
         lane_u32 tMask = ((t > MinHitDistance) & (t < Hit->Distance));
         if(!MaskIsZeroed(tMask)) { //If the mask does not contain anything, all the rays in the lane missed. 
@@ -29,8 +29,8 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
             lane_v3 HitPosition = RayOrigin + t * RayDirection;
             
 
-            ConditionalAssign(&Hit->Transform, HitMask, OrthoBasisFromNormal(Hit->Normal));
-            ConditionalAssign(&Hit->InverseTransform, HitMask, Inverse(Hit->Transform));
+            ConditionalAssign(&Hit->Transform, HitMask, Lane_OrthoBasisFromNormal(Hit->Normal));
+            ConditionalAssign(&Hit->InverseTransform, HitMask, Lane_Inverse(Hit->Transform));
         }
     }
 }
@@ -38,12 +38,12 @@ void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, l
 b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {
 
     lane_f32 Spherer = LaneF32FromF32( Sphere->r);
-    lane_v3 SphereP = TransformPosition(Sphere->Transform, LaneV3(0,0,0));
+    lane_v3 SphereP = Lane_TransformPosition(Sphere->Transform, LaneV3(0,0,0));
 
     lane_v3 SphereRelativeOrigin =  RayOrigin - SphereP;
-    lane_f32 a = Inner(RayDirection, RayDirection);
-    lane_f32 b = 2.0f * Inner(RayDirection, SphereRelativeOrigin);
-    lane_f32 c = Inner(SphereRelativeOrigin, SphereRelativeOrigin) - Sphere->r * Sphere->r;
+    lane_f32 a = Lane_Inner(RayDirection, RayDirection);
+    lane_f32 b = 2.0f * Lane_Inner(RayDirection, SphereRelativeOrigin);
+    lane_f32 c = Lane_Inner(SphereRelativeOrigin, SphereRelativeOrigin) - Sphere->r * Sphere->r;
 
     lane_f32 RootTerm = SquareRoot(b*b - 4.0f * a * c);
     
@@ -69,10 +69,10 @@ b32 HitSphere(sphere *Sphere,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
             ConditionalAssign(&Hit->MaterialIndex, HitMask, SphereMatIndex);
 
             ConditionalAssign(&Hit->Position, HitMask, RayOrigin + t * RayDirection);
-            ConditionalAssign(&Hit->Normal, HitMask, NOZ(Hit->Position - SphereP));
+            ConditionalAssign(&Hit->Normal, HitMask, Lane_NOZ(Hit->Position - SphereP));
 
-            ConditionalAssign(&Hit->Transform, HitMask, OrthoBasisFromNormal(Hit->Normal));
-            ConditionalAssign(&Hit->InverseTransform, HitMask, Inverse(Hit->Transform));
+            ConditionalAssign(&Hit->Transform, HitMask, Lane_OrthoBasisFromNormal(Hit->Normal));
+            ConditionalAssign(&Hit->InverseTransform, HitMask, Lane_Inverse(Hit->Transform));
             
             return true;
         }

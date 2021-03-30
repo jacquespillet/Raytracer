@@ -142,7 +142,7 @@ public:
 struct triangle
 {
 public:
-    lane_mat4 Transform;
+    mat4 Transform;
 
     v3 V1;
     v3 LaneV2;
@@ -165,7 +165,7 @@ public:
 internal sphere Sphere(v3 P, f32 r, u32 MatIndex) {
     sphere Result = {};
     
-    Result.Transform = Translate(Identity(), LaneV3(P.x, P.y, P.z));
+    Result.Transform = Lane_Translate(Lane_Identity(), LaneV3(P.x, P.y, P.z));
     
     
     Result.r = r;
@@ -179,7 +179,7 @@ internal sphere Sphere(v3 P, f32 r, u32 MatIndex) {
     return Result;
 }
 
-internal triangle Triangle(v3 V1, v3 LaneV2, v3 LaneV3, lane_mat4 Transform, u32 MatIndex) {
+internal triangle Triangle(v3 V1, v3 LaneV2, v3 LaneV3, mat4 Transform, u32 MatIndex) {
     triangle Result = {};
     
     Result.Transform = Transform;
@@ -190,16 +190,16 @@ internal triangle Triangle(v3 V1, v3 LaneV2, v3 LaneV3, lane_mat4 Transform, u32
 
     Result.MatIndex = MatIndex;
 
-    // v3 WorldV1 = TransformPosition(Transform, V1);
-    // v3 WorldLaneV2 = TransformPosition(Transform, LaneV2);
-    // v3 WorldLaneV3 = TransformPosition(Transform, LaneV3);
+    v3 WorldV1 = TransformPosition(Transform, V1);
+    v3 WorldLaneV2 = TransformPosition(Transform, LaneV2);
+    v3 WorldLaneV3 = TransformPosition(Transform, LaneV3);
 
-    // v3 MinPosition = Min(WorldV1, Min(WorldLaneV2, WorldLaneV3));
-    // v3 MaxPosition = Max(WorldV1, Max(WorldLaneV2, WorldLaneV3));
+    v3 MinPosition = Min(WorldV1, Min(WorldLaneV2, WorldLaneV3));
+    v3 MaxPosition = Max(WorldV1, Max(WorldLaneV2, WorldLaneV3));
 
-    // Result.AABB = {
-    //     LaneLaneV3FromLaneV3(MinPosition), LaneLaneV3FromLaneV3(MaxPosition)
-    // };
+    Result.AABB = {
+        LaneV3FromLaneV3(MinPosition), LaneV3FromLaneV3(MaxPosition)
+    };
 
     return Result;    
 }

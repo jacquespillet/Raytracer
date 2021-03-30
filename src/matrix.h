@@ -559,14 +559,17 @@ mat3 Rotate(f32 Angle)
 mat4 LookAt(v3 CameraPosition, v3 Center, v3 UpVector)
 {
     v3 Z = NOZ(Center - CameraPosition);
-    UpVector = LaneV3(0,1,0);
+    UpVector = V3(0,1,0);
     
-    u32 IsTooCloseMask = Abs(Inner(UpVector, Z)) > (0.99f); 
-    ConditionalAssign(&UpVector, IsTooCloseMask, LaneV3(0,0,1));
+    if(Abs(Inner(UpVector, Z)) > (0.99f))
+    {
+        UpVector = V3(0,0,1);
+    }
     
-    IsTooCloseMask = Abs(Inner(UpVector, Z)) > (0.99f); 
-    ConditionalAssign(&UpVector, IsTooCloseMask, LaneV3(1,0,1));
-
+    if(Abs(Inner(UpVector, Z)) > (0.99f))
+    {
+        UpVector = V3(1,0,0);
+    }
 
     v3 X = NOZ(Cross(UpVector, Z));
     v3 Y = NOZ(Cross(Z, X));
@@ -634,7 +637,7 @@ mat4 Identity()
 
 mat4 OrthoBasisFromNormal(v3 Normal)
 {
-    v3 UpVector = LaneV3(0,1,0);
+    v3 UpVector = V3(0,1,0);
     
     // if(Abs(Inner(UpVector, Normal)) > 0.99)
     // {
@@ -646,7 +649,7 @@ mat4 OrthoBasisFromNormal(v3 Normal)
     //     UpVector = LaneV3(1,0,0);
     // }
 
-    mat4 Result = LookAt(LaneV3(0.0f, 0.0f, 0.0f), Normal, UpVector);
+    mat4 Result = LookAt(V3(0.0f, 0.0f, 0.0f), Normal, UpVector);
 
     return Result;
 }

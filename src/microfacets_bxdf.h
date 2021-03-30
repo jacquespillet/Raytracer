@@ -17,7 +17,7 @@ inline lane_f32 CosPhi( lane_v3 w) {
     lane_u32 SinIs0 = (sin==LaneF32FromF32(0));
 
     lane_f32 Result = LaneF32FromF32(0);
-    ConditionalAssign(&Result, SinIs0, Clamp(w.x/sin, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f)));
+    ConditionalAssign(&Result, SinIs0, Lane_Clamp(w.x/sin, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f)));
 
     return Result;
 }
@@ -27,7 +27,7 @@ inline lane_f32 SinPhi( lane_v3 w) {
     lane_u32 SinIs0 = (sin==LaneF32FromF32(0));
 
     lane_f32 Result = LaneF32FromF32(0);
-    ConditionalAssign(&Result, SinIs0, Clamp(w.y/sin, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f)));
+    ConditionalAssign(&Result, SinIs0, Lane_Clamp(w.y/sin, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f)));
     
     return Result;
 }
@@ -41,7 +41,7 @@ inline lane_f32 Sin2Phi( lane_v3 w) {
 }
 
 inline lane_f32 CosDPhi( lane_v3 wa,  lane_v3 wb) {
-    return Clamp((wa.x * wb.x + wa.y * wb.y) /
+    return Lane_Clamp((wa.x * wb.x + wa.y * wb.y) /
                  SquareRoot((wa.x * wa.x + wa.y * wa.y) *
                            (wb.x * wb.x + wb.y * wb.y)), LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f));
 }
@@ -152,7 +152,7 @@ lane_v3 BeckmannDistribution_Sample_wh(beckmann_distribution Distribution, lane_
 
 lane_f32 BeckmannDistribution_Pdf(beckmann_distribution Distribution, lane_v3 wo, lane_v3 wh) {
     if(!Distribution.SampleVisibleArea) {
-        return BeckmannDistribution_D(Distribution, wh) * BeckmannDistribution_G1(Distribution, wo) * Abs(Inner(wo, wh)) / AbsCosTheta(wo);
+        return BeckmannDistribution_D(Distribution, wh) * BeckmannDistribution_G1(Distribution, wo) * Abs(Lane_Inner(wo, wh)) / AbsCosTheta(wo);
     }else {
 
     }
@@ -165,7 +165,7 @@ struct fresnel_dielectric {
 
 lane_f32 EvaluateFresnelDielectric(fresnel_dielectric *Fresnel, lane_f32 cosThetaI) 
 {
-    cosThetaI = Clamp(cosThetaI, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f));
+    cosThetaI = Lane_Clamp(cosThetaI, LaneF32FromF32(-1.0f), LaneF32FromF32(1.0f));
 
     lane_u32 entering = cosThetaI > LaneF32FromF32(0.0f);
     
@@ -211,7 +211,7 @@ struct microfacet_reflection
     fresnel_dielectric FresnelDielectric;
 };
 
-microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.1f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
+microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.02f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
 {
     microfacet_reflection Result = {};
     Result.R = DiffuseColor;
@@ -240,8 +240,8 @@ lane_v3 MicroFacetReflection_f(microfacet_reflection *MicroFacetReflection,  lan
     laneMask |= (wh.x ==LaneF32FromF32(0) & wh.y==LaneF32FromF32(0) & wh.z==LaneF32FromF32(0));
     
 
-    wh = NOZ(wh);
-    lane_f32 F = EvaluateFresnelDielectric(&MicroFacetReflection->FresnelDielectric, Inner(wi, wh));
+    wh = Lane_NOZ(wh);
+    lane_f32 F = EvaluateFresnelDielectric(&MicroFacetReflection->FresnelDielectric, Lane_Inner(wi, wh));
 	
     lane_v3 Result = MicroFacetReflection->R
 			* BeckmannDistribution_D(MicroFacetReflection->Distribution, wh) 
@@ -256,10 +256,10 @@ lane_v3 MicroFacetReflection_f(microfacet_reflection *MicroFacetReflection,  lan
 
 lane_v3 MicroFacetReflection_Sample_f(microfacet_reflection *MicroFacetReflection,  lane_v3 &wo, lane_v3 *wi,  lane_v2 sample, lane_f32 *pdf)  {
     lane_v3 wh = BeckmannDistribution_Sample_wh(MicroFacetReflection->Distribution, wo, sample);
-    *wi = Reflect(-wo, wh);
+    *wi = Lane_Reflect(-wo, wh);
     
     
-    *pdf = BeckmannDistribution_Pdf( MicroFacetReflection->Distribution, wo, wh)/(4*Inner(wo, wh));    
+    *pdf = BeckmannDistribution_Pdf( MicroFacetReflection->Distribution, wo, wh)/(4*Lane_Inner(wo, wh));    
     
     lane_v3 Result =MicroFacetReflection_f(MicroFacetReflection, wo, *wi);
     
@@ -272,8 +272,8 @@ lane_v3 MicroFacetReflection_Sample_f(microfacet_reflection *MicroFacetReflectio
 
 lane_f32 MicroFacetReflection_Pdf(microfacet_reflection *MicroFacetReflection,  lane_v3& wo,  lane_v3& wi)  {
 
-    lane_v3 wh = NOZ(wo+wi);
-    lane_f32 Result =  BeckmannDistribution_Pdf(MicroFacetReflection->Distribution, wo, wh) * (LaneF32FromF32(1.0f) / (LaneF32FromF32(4.0f)*Inner(wo, wh))); 
+    lane_v3 wh = Lane_NOZ(wo+wi);
+    lane_f32 Result =  BeckmannDistribution_Pdf(MicroFacetReflection->Distribution, wo, wh) * (LaneF32FromF32(1.0f) / (LaneF32FromF32(4.0f)*Lane_Inner(wo, wh))); 
 
     lane_u32 SameHemisphereMask = AndNot(SameHemisphere(wo, wi), LaneU32FromU32(0xFFFFFFFF));
     ConditionalAssign(&Result, SameHemisphereMask, LaneF32FromF32(0.0f));

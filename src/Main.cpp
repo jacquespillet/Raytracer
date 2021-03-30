@@ -78,7 +78,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     //Get material properties
     lane_mat4 Transform = Hit.Transform;
     lane_mat4 InverseTransform = Hit.InverseTransform;
-    lane_v3 LocalRayDirection = TransformDirection(InverseTransform, *RayDirection);
+    lane_v3 LocalRayDirection = Lane_TransformDirection(InverseTransform, *RayDirection);
 
     lane_u32 MaterialType = GatherU32(Materials, Hit.MaterialIndex, Type); 
 
@@ -87,9 +87,9 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     {
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         
-        lane_v3 RandomBounce = NOZ(LaneV3(0,0,1) + RandomInSphere(Series));
-        lane_f32 CosineTerm = Abs(Inner(RandomBounce, LaneV3(0,0,1)));
-        *RayDirection = NOZ(TransformDirection(Transform, RandomBounce));
+        lane_v3 RandomBounce = Lane_NOZ(LaneV3(0,0,1) + RandomInSphere(Series));
+        lane_f32 CosineTerm = Abs(Lane_Inner(RandomBounce, LaneV3(0,0,1)));
+        *RayDirection = Lane_NOZ(Lane_TransformDirection(Transform, RandomBounce));
 
         ConditionalAssign(Attenuation, DiffuseMaterialMask, CosineTerm *  MatRefColor);
     }
@@ -109,9 +109,9 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
 #else
 
-#define MICROFACET 0
+#define MICROFACET 1
 #define LAMBERTIAN 0
-#define PLASTIC 1
+#define PLASTIC 0
 #if MICROFACET
         //Sample BSDF to get the next path direction
         microfacet_reflection Reflection = MicrofacetReflection(LaneV3(1,1,1));
@@ -148,8 +148,8 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_u32 pdfGT0 = pdf > 0;
         lane_u32 localMask = MetalicMaterialMask & pdfGT0;
 
-            lane_v3 MetalicAttenuation = brdf * Abs(Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
-            ConditionalAssign(RayDirection, localMask, TransformDirection(Transform, OutputDirection));
+            lane_v3 MetalicAttenuation = brdf * Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
+            ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
             ConditionalAssign(Attenuation, localMask, MetalicAttenuation);
 #endif
     }
@@ -159,27 +159,27 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     if(!MaskIsZeroed(DielectricMaterialMask)) {
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         
-        lane_v3 ReflectedVector = Reflect(*RayDirection, Hit.Normal);
+        lane_v3 ReflectedVector = Lane_Reflect(*RayDirection, Hit.Normal);
 
         lane_f32 IndexOfRefraction = GatherF32(Materials, Hit.MaterialIndex, IndexOfRefraction);
 
         lane_v3 OutNormal = Hit.Normal;
         lane_f32 NiOverNt = 1.0f / IndexOfRefraction;
-        lane_f32 CosineTerm = -Inner(*RayDirection, Hit.Normal) / Length(*RayDirection); 
+        lane_f32 CosineTerm = -Lane_Inner(*RayDirection, Hit.Normal) / Lane_Length(*RayDirection); 
         
-        lane_u32 IsInside = (Inner(*RayDirection, Hit.Normal) > 0);
+        lane_u32 IsInside = (Lane_Inner(*RayDirection, Hit.Normal) > 0);
         ConditionalAssign(&OutNormal, IsInside, -Hit.Normal);
         ConditionalAssign(&NiOverNt, IsInside, IndexOfRefraction);
-        ConditionalAssign(&CosineTerm, IsInside,  IndexOfRefraction * Inner(*RayDirection, Hit.Normal) / Length(*RayDirection));
+        ConditionalAssign(&CosineTerm, IsInside,  IndexOfRefraction * Lane_Inner(*RayDirection, Hit.Normal) / Lane_Length(*RayDirection));
 
-        lane_v3 Reflected = Reflect(*RayDirection, Hit.Normal);
+        lane_v3 Reflected = Lane_Reflect(*RayDirection, Hit.Normal);
         lane_v3 Refracted;
-        lane_u32 DidRefract = Refract(*RayDirection, OutNormal, NiOverNt, &Refracted);
+        lane_u32 DidRefract = Lane_Refract(*RayDirection, OutNormal, NiOverNt, &Refracted);
         
         lane_f32 ReflectionProbability = LaneF32FromF32(1.0f);
-        ConditionalAssign(&ReflectionProbability, DidRefract, ShlickFresnelApproximation(CosineTerm, IndexOfRefraction));
+        ConditionalAssign(&ReflectionProbability, DidRefract, Lane_ShlickFresnelApproximation(CosineTerm, IndexOfRefraction));
 
-        *RayDirection = NOZ(Refracted);
+        *RayDirection = Lane_NOZ(Refracted);
         lane_u32 ScatteredMask = RandomUnilateral(Series) < ReflectionProbability;
         ConditionalAssign(RayDirection, ScatteredMask, Reflected);
         
@@ -200,10 +200,10 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
     
     
     *OutRayOrigin = LaneV3(1,0,0) * PositionOnSensor.x + LaneV3(0,1,0) * PositionOnSensor.y ;
-    *OutRayOrigin = TransformPosition(Camera.transform, *OutRayOrigin);
+    *OutRayOrigin = Lane_TransformPosition(Camera.transform, *OutRayOrigin);
     
-    *OutRayDirection = NOZ(FilmP);
-    *OutRayDirection = TransformDirection(Camera.transform, *OutRayDirection);
+    *OutRayDirection = Lane_NOZ(FilmP);
+    *OutRayDirection = Lane_TransformDirection(Camera.transform, *OutRayDirection);
 }
 
 camera CreateCamera(u32 Width, u32 Height)
@@ -213,7 +213,7 @@ camera CreateCamera(u32 Width, u32 Height)
     lane_v3 FilmCenter = LaneV3(0, 0, FilmDistance);
 
     camera Result = {};
-    Result.transform = LookAt(CameraPosition, LaneV3(0,0,0), LaneV3(0, 1, 0));
+    Result.transform = Lane_LookAt(CameraPosition, LaneV3(0,0,0), LaneV3(0, 1, 0));
     Result.Aperture = 0.00f;
 
     //Film
@@ -311,7 +311,7 @@ internal void CastRays(cast_state *State)
 
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
-            Sample += Hadamard(Attenuation, MatEmitColor); //Add to the current pixel sample the value of the emitted color that we have hit times the current attenuation
+            Sample += Lane_Hadamard(Attenuation, MatEmitColor); //Add to the current pixel sample the value of the emitted color that we have hit times the current attenuation
             
             //Sample 1 light from the point of intersection
             //Sample += Sample1Light(Hit.Point);    
@@ -333,7 +333,7 @@ internal void CastRays(cast_state *State)
                 LaneMask &= SampleMaterial(World->Materials, Hit, &Series, &HitPointAttenuation, &RayDirection);
                 
                 RayOrigin = Hit.Position; 
-                Attenuation = Hadamard(Attenuation, HitPointAttenuation);
+                Attenuation = Lane_Hadamard(Attenuation, HitPointAttenuation);
             }
         }
         FinalColor += RayContrib * Sample;
@@ -561,7 +561,7 @@ int main(int argCount, char **args) {
     
     work_queue Queue = {};
     Queue.MaxBounceCount = 8;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(512));
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(64));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

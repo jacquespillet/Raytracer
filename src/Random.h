@@ -27,7 +27,7 @@ internal lane_v3 RandomInSphere(random_series *Series) {
     while(MaskIsZeroed(IsLengthLessThanOneMask)) {
         Result = {RandomBilateral(Series), RandomBilateral(Series), RandomBilateral(Series)};
 
-        IsLengthLessThanOneMask = (LengthSq(Result) <= 1);
+        IsLengthLessThanOneMask = (Lane_LengthSq(Result) <= 1);
     }
     return Result;
 }
@@ -39,7 +39,7 @@ internal lane_v3 RandomInDisk(random_series *Series) {
 
     while(MaskIsZeroed(IsLengthLessThanOneMask)) {
         Result = {RandomBilateral(Series), RandomBilateral(Series), 0};
-        IsLengthLessThanOneMask = (LengthSq(Result) <= 1);
+        IsLengthLessThanOneMask = (Lane_LengthSq(Result) <= 1);
     }
     return Result;
 }

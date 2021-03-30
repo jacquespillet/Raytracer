@@ -1,5 +1,5 @@
 #if !defined(LANE_WIDTH)
-#define LANE_WIDTH 8
+#define LANE_WIDTH 1
 #endif
 
 struct v2 
@@ -272,6 +272,51 @@ internal f32 Max(f32 A, f32 B) {
 
 // //Normal functions
 
+inline v3
+operator*(f32 A, v3 B)
+{
+    v3 Result;
+    
+    Result.x = A*B.x;
+    Result.y = A*B.y;
+    Result.z = A*B.z;
+    
+    return(Result);
+}
+
+inline v3
+operator*(v3 B, f32 A)
+{
+    v3 Result = A*B;
+    
+    return(Result);
+}
+
+inline v3
+operator-(v3 A, v3 B)
+{
+    v3 Result;
+    
+    Result.x = A.x - B.x;
+    Result.y = A.y - B.y;
+    Result.z = A.z - B.z;
+    
+    return(Result);
+}
+
+
+inline lane_v3
+Lane_Cross(lane_v3 A, lane_v3 B)
+{
+    lane_v3 Result;
+    
+    Result.x = A.y*B.z - A.z*B.y;
+    Result.y = A.z*B.x - A.x*B.z;
+    Result.z = A.x*B.y - A.y*B.x;
+    
+    return(Result);
+}
+
 
 inline v3 V3(f32 X, f32 Y, f32 Z)
 {
@@ -295,97 +340,28 @@ internal v3 Max(v3 A, v3 B) {
     return Result;
 }
 
-// inline lane_v3
-// Cross(lane_v3 A, lane_v3 B)
-// {
-//     lane_v3 Result;
+inline v3
+Cross(v3 A, v3 B)
+{
+    v3 Result;
     
-//     Result.x = A.y*B.z - A.z*B.y;
-//     Result.y = A.z*B.x - A.x*B.z;
-//     Result.z = A.x*B.y - A.y*B.x;
+    Result.x = A.y*B.z - A.z*B.y;
+    Result.y = A.z*B.x - A.x*B.z;
+    Result.z = A.x*B.y - A.y*B.x;
     
-//     return(Result);
-// }
-
-
-// inline lane_v3
-// Hadamard(lane_v3 A, lane_v3 B)
-// {
-//     lane_v3 Result = {A.x*B.x, A.y*B.y, A.z*B.z};
-    
-//     return(Result);
-// }
-
-
-// inline lane_v3 &
-// operator+=(lane_v3 &A, lane_v3 B)
-// {
-//     A = A + B;
-    
-//     return(A);
-// }
-
-// internal lane_v3 operator*(lane_v3 A, lane_f32 B) {
-//     lane_v3 Result;
-
-//     Result.x = A.x * B;
-//     Result.y = A.y * B;
-//     Result.z = A.z * B;
-//     return Result;
-// }
-
-// internal lane_v3 operator*(lane_f32 A, lane_v3 B) {
-//     lane_v3 Result = B * A;
-//     return Result;
-// }
-
-// inline lane_f32
-// Inner(lane_v3 A, lane_v3 B)
-// {
-//     lane_f32 Result =  A.x*B.x + A.y*B.y + A.z*B.z;
-    
-//     return(Result);
-// }
-
-// inline lane_f32
-// LengthSq(lane_v3 A)
-// {
-//     lane_f32 Result = Inner(A, A);
-    
-//     return(Result);
-// }
-
-// inline lane_f32
-// Length(lane_v3 A)
-// {
-//     lane_f32 Result = SquareRoot(LengthSq(A));
-//     return(Result);
-// }
-
-// //LaneV3
-// inline lane_v3
-// NOZ(lane_v3 A)
-// {
-//     lane_v3 Result = {};
-    
-//     lane_f32 LenSq = LengthSq(A);
-//     lane_u32 Mask = (LenSq > LaneF32FromF32(Square(0.0001f)));
-//     ConditionalAssign(&Result, Mask, A * (1.0f / SquareRoot(LenSq)));
-    
-//     return(Result);
-// }
-
+    return(Result);
+}
 
 
 
 //Vector functions
 
-inline lane_f32 Clamp01(lane_f32 Value) {
+inline lane_f32 Lane_Clamp01(lane_f32 Value) {
     lane_f32 Result = Min( Max(Value, LaneF32FromF32(0.0f)), LaneF32FromF32(1.0f));
     return Result;
 }
 
-inline lane_f32 Clamp(lane_f32 Value,lane_f32 MinValue, lane_f32 MaxValue) {
+inline lane_f32 Lane_Clamp(lane_f32 Value,lane_f32 MinValue, lane_f32 MaxValue) {
     lane_f32 Result = Min( Max(Value, MinValue), MaxValue);
     return Result;
 }
@@ -451,7 +427,7 @@ internal void ConditionalAssign(lane_v2 *Dest, lane_u32 Mask, lane_v2 Source) {
 }
 
 
-inline lane_v3 LaneLaneV3FromLaneV3(v3 V) {
+inline lane_v3 LaneV3FromLaneV3(v3 V) {
     lane_v3 Result;
     Result.x = LaneF32FromF32(V.x);
     Result.y = LaneF32FromF32(V.y);
@@ -539,21 +515,10 @@ operator-(lane_v3 A)
 
 
 
-inline lane_v3
-Cross(lane_v3 A, lane_v3 B)
-{
-    lane_v3 Result;
-    
-    Result.x = A.y*B.z - A.z*B.y;
-    Result.y = A.z*B.x - A.x*B.z;
-    Result.z = A.x*B.y - A.y*B.x;
-    
-    return(Result);
-}
 
 
 inline lane_v3
-Hadamard(lane_v3 A, lane_v3 B)
+Lane_Hadamard(lane_v3 A, lane_v3 B)
 {
     lane_v3 Result = {A.x*B.x, A.y*B.y, A.z*B.z};
     
@@ -584,37 +549,67 @@ internal lane_v3 operator*(lane_f32 A, lane_v3 B) {
 }
 
 inline lane_f32
-Inner(lane_v3 A, lane_v3 B)
+Lane_Inner(lane_v3 A, lane_v3 B)
 {
     lane_f32 Result =  A.x*B.x + A.y*B.y + A.z*B.z;
     
     return(Result);
 }
 
-inline lane_f32
-LengthSq(lane_v3 A)
+inline f32
+Inner(v3 A, v3 B)
 {
-    lane_f32 Result = Inner(A, A);
+    f32 Result =  A.x*B.x + A.y*B.y + A.z*B.z;
     
     return(Result);
 }
 
 inline lane_f32
-Length(lane_v3 A)
+Lane_LengthSq(lane_v3 A)
 {
-    lane_f32 Result = SquareRoot(LengthSq(A));
+    lane_f32 Result = Lane_Inner(A, A);
+    
+    return(Result);
+}
+
+inline f32
+LengthSq(v3 A)
+{
+    f32 Result = Inner(A, A);
+    
+    return(Result);
+}
+
+inline lane_f32
+Lane_Length(lane_v3 A)
+{
+    lane_f32 Result = SquareRoot(Lane_LengthSq(A));
     return(Result);
 }
 
 //LaneV3
 inline lane_v3
-NOZ(lane_v3 A)
+Lane_NOZ(lane_v3 A)
 {
     lane_v3 Result = {};
     
-    lane_f32 LenSq = LengthSq(A);
+    lane_f32 LenSq = Lane_LengthSq(A);
     lane_u32 Mask = (LenSq > LaneF32FromF32(Square(0.0001f)));
     ConditionalAssign(&Result, Mask, A * (1.0f / SquareRoot(LenSq)));
+    
+    return(Result);
+}
+
+//LaneV3
+inline v3
+NOZ(v3 A)
+{
+    v3 Result = {};
+    
+    f32 LenSq = LengthSq(A);
+    
+    if(LenSq > Square(0.0001f))
+        Result = A * (1.0f / SquareRoot(LenSq));
     
     return(Result);
 }
@@ -641,7 +636,7 @@ inline lane_v3 LaneLaneV3(lane_f32 X, lane_f32 Y, lane_f32 Z) {
 }
 
 inline lane_v3
-Lerp(lane_v3 A, lane_f32 t, lane_v3 B)
+Lane_Lerp(lane_v3 A, lane_f32 t, lane_v3 B)
 {
     lane_v3 Result = (1.0f - t)*A + t*B;
     
@@ -649,20 +644,20 @@ Lerp(lane_v3 A, lane_f32 t, lane_v3 B)
 }
 
 
-internal lane_f32 Pow5(lane_f32 A) {
+internal lane_f32 Lane_Pow5(lane_f32 A) {
     lane_f32 Result = A * A * A * A * A;
     return Result;
 }
 
-inline lane_v3 Reflect(lane_v3 A, lane_v3 Normal) {
+inline lane_v3 Lane_Reflect(lane_v3 A, lane_v3 Normal) {
     lane_v3 Result;
-    Result = A - 2.0f * Inner(A, Normal) * Normal;
+    Result = A - 2.0f * Lane_Inner(A, Normal) * Normal;
     return Result;
 }
 
-inline lane_u32 Refract(lane_v3 IncidentVector, lane_v3 Normal, lane_f32 IndexOfRefraction, lane_v3 *OutRefractedVector) {
-    lane_v3 IncidentVectorNormalized = NOZ(IncidentVector);
-    lane_f32 IncidentDotNormal = Inner(IncidentVectorNormalized, Normal);
+inline lane_u32 Lane_Refract(lane_v3 IncidentVector, lane_v3 Normal, lane_f32 IndexOfRefraction, lane_v3 *OutRefractedVector) {
+    lane_v3 IncidentVectorNormalized = Lane_NOZ(IncidentVector);
+    lane_f32 IncidentDotNormal = Lane_Inner(IncidentVectorNormalized, Normal);
 
     lane_f32 Discriminant = LaneF32FromF32(1.0f) - IndexOfRefraction * IndexOfRefraction * (LaneF32FromF32(1.0f) - IncidentDotNormal * IncidentDotNormal);
 
@@ -675,20 +670,20 @@ inline lane_u32 Refract(lane_v3 IncidentVector, lane_v3 Normal, lane_f32 IndexOf
 }
 
 
-inline lane_f32 ShlickFresnelApproximation(lane_f32 Cosine, lane_f32 IndexOfRefraction) {
+inline lane_f32 Lane_ShlickFresnelApproximation(lane_f32 Cosine, lane_f32 IndexOfRefraction) {
     lane_f32 One = LaneF32FromF32(1.0);
     lane_f32 R0 = (One- IndexOfRefraction) / (One + IndexOfRefraction);
     R0 = R0 * R0;
-    return R0 + (One - R0) * Pow5(One - Cosine);
+    return R0 + (One - R0) * Lane_Pow5(One - Cosine);
 }
 
 
-internal lane_v3 Min(lane_v3 A, lane_v3 B) {
+internal lane_v3 Lane_Min(lane_v3 A, lane_v3 B) {
     lane_v3 Result = LaneV3(Min(A.x, B.x), Min(A.y, B.y), Min(A.z, B.z));
     return Result;
 }
 
-internal lane_v3 Max(lane_v3 A, lane_v3 B) {
+internal lane_v3 Lane_Max(lane_v3 A, lane_v3 B) {
     lane_v3 Result = LaneV3(Max(A.x, B.x), Max(A.y, B.y), Max(A.z, B.z));
     return Result;
 }
@@ -800,6 +795,8 @@ operator*(f32 A, v4 B)
     return(Result);
 }
 
+
+
 inline v4
 operator*(v4 B, f32 A)
 {
@@ -841,7 +838,7 @@ operator*(lane_v2 B, lane_f32 A)
 
 
 inline f32
-Inner(v4 A, v4 B)
+Lane_Inner(v4 A, v4 B)
 {
     f32 Result = A.x*B.x + A.y*B.y + A.z*B.z+ A.w*B.w;
     
@@ -850,19 +847,19 @@ Inner(v4 A, v4 B)
 
 
 inline f32
-LengthSq(v4 A)
+Lane_LengthSq(v4 A)
 {
-    f32 Result = Inner(A, A);
+    f32 Result = Lane_Inner(A, A);
     
     return(Result);
 }
 
 inline v4
-NOZ(v4 A)
+Lane_NOZ(v4 A)
 {
     v4 Result = {};
     
-    f32 LenSq = LengthSq(A);
+    f32 LenSq = Lane_LengthSq(A);
     if(LenSq > Square(0.0001f))
     {
         Result = A * (1.0f / SquareRoot(LenSq));
@@ -871,8 +868,9 @@ NOZ(v4 A)
     return(Result);
 }
 
-#include "lane_matrix.h"
+
 #if LANE_WIDTH != 1
-// #include "matrix.h"
 #endif
+#include "matrix.h"
+#include "lane_matrix.h"
 

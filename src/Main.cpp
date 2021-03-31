@@ -100,7 +100,6 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     {
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
-        
 #if 0
         lane_v3 ReflectedDirection = Lane_Reflect(LocalRayDirection, LaneV3(0,0,1));
         ReflectedDirection =Lane_NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
@@ -152,6 +151,77 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
             ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
             ConditionalAssign(Attenuation, localMask, MetalicAttenuation);
 #endif
+    }
+    
+    lane_u32 PlasticMaterialMask = (MaterialType == LaneU32FromU32(material_types::Plastic));
+    if(!MaskIsZeroed(PlasticMaterialMask)) 
+    {
+        lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
+        lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
+
+        
+        //Sample BSDF to get the next path direction
+        plastic_material Reflection = PlasticMaterial();
+        
+        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+        lane_f32 RandomBxDF = RandomUnilateral(Series);
+        lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random,RandomBxDF,  &pdf);
+
+
+        lane_u32 pdfGT0 = pdf > 0;
+        lane_u32 localMask = PlasticMaterialMask & pdfGT0;
+
+        lane_v3 PlasticAttenuation = brdf * Lane_Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
+        ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
+        ConditionalAssign(Attenuation, localMask, PlasticAttenuation);
+    }
+
+    lane_u32 MicrofacetsMaterialMask = (MaterialType == LaneU32FromU32(material_types::Microfacets));
+    if(!MaskIsZeroed(MicrofacetsMaterialMask)) 
+    {
+        lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
+        lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
+        
+        //Sample BSDF to get the next path direction
+        microfacet_reflection Reflection = MicrofacetReflection(MatRefColor);
+        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+        
+        lane_v3 brdf = MicroFacetReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
+
+        
+        lane_u32 pdfGT0 = pdf > 0;
+        lane_u32 localMask = MicrofacetsMaterialMask & pdfGT0;
+
+        lane_v3 MicrofacetsAttenuation = brdf * Lane_Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
+        ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
+        ConditionalAssign(Attenuation, localMask, MicrofacetsAttenuation);
+    }
+
+
+    lane_u32 LambertianMaterialMask = (MaterialType == LaneU32FromU32(material_types::Lambertian));
+    if(!MaskIsZeroed(LambertianMaterialMask)) 
+    {
+        lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
+        lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
+        
+        //Sample BSDF to get the next path direction
+        lambertian_reflection Reflection = LambertianReflection(MatRefColor);
+        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
+        lane_f32 pdf=LaneF32FromF32(0.0f);
+        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
+
+        lane_v3 brdf = LambertianReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
+        
+        lane_u32 pdfGT0 = pdf > 0;
+        lane_u32 localMask = LambertianMaterialMask & pdfGT0;
+
+        lane_v3 LambertianAttenuation = brdf * Lane_Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
+        ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
+        ConditionalAssign(Attenuation, localMask, LambertianAttenuation);
     }
     
     
@@ -209,7 +279,7 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 camera CreateCamera(u32 Width, u32 Height)
 {
     f32 FilmDistance =  (1.0f);
-    lane_v3 CameraPosition = LaneV3(10, 10, 10);
+    lane_v3 CameraPosition = LaneV3(5, 5, 5);
     lane_v3 FilmCenter = LaneV3(0, 0, FilmDistance);
 
     camera Result = {};
@@ -311,7 +381,7 @@ internal void CastRays(cast_state *State)
             //Sample += Sample1Light(Hit.Point);    
 
             //When we hit the material 0, we have missed. We kill the ray at that point, it's not gonna continue.
-            LaneMask = LaneMask & (Hit.MaterialIndex != LaneU32FromU32( 0));
+            LaneMask = LaneMask & (Hit.MaterialIndex != LaneU32FromU32(0));
             
             //Same if we directly hit an emitted, we can stop tracing.
             LaneMask = LaneMask & (MatEmitColor == ZeroVector);
@@ -540,32 +610,39 @@ int main(int argCount, char **args) {
 
     //Specular, emition, reflection
     material Materials[] = {
-        EmissiveMaterial({0.5f, 0.6f, 0.8f}),
+        EmissiveMaterial({0.7,0.7,0.7}), //Reserved for the sky
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
-        DiffuseMaterial({0.7f, 0.1f, 0.1f}),
-        EmissiveMaterial({3.0f, 2.0f, 2.0f}),
         MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.25F),
         DielectricMaterial(1.2f),
-        VolumetricMaterial(1.2f)
+        LambertianMaterial({1.0f, 1.0f, 1.0f}),
+        MicrofacetsMaterial({0.1f, 0.8f, 0.2f}),
+        PlasticMaterial({0.2f, 0.3f, 0.7f}),
+        EmissiveMaterial({10,10,10})
     };
    
  
-    u32 Cube1Count;
-    shape* Cube1 = MeshFromFile("models/cube/cube.obj", &Cube1Count, 4, Translate(Identity(), V3(0, 0, 0)));
+    // u32 Cube1Count;
+    // shape* Cube1 = MeshFromFile("models/cube/cube.obj", &Cube1Count, 2, Translate(Identity(), V3(0, 0, 0)));
  
-    u32 GroundCount;
-    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 4, Scale(Identity(), V3(5, 5, 5)));
-
     u32 Cube2Count;
-    shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 4, Translate(Identity(), V3(1, 0, 0)));
+    shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 5, Translate(Identity(), V3(1, 0, 0)));
+    shape *Sph2 = Sphere(V3(4, 4, 0), 1, 7);
+
+    shape *Sph = Sphere(V3(0, 1, 0), 1, 5);
+    
+    u32 GroundCount;
+    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 6, Scale(Identity(), V3(5, 5, 5)));
+
     
     world World = {};
     World.MaterialCount = ArrayCount(Materials);
     World.Materials = Materials;
 
-    AddShapesToWorld(&World, Cube1, Cube1Count);
-    AddShapesToWorld(&World, Cube2, Cube2Count);
+    // AddShapesToWorld(&World, Cube1, Cube1Count);
+    // AddShapesToWorld(&World, Cube2, Cube2Count);
     AddShapesToWorld(&World, Ground, GroundCount);
+    AddShapesToWorld(&World, Sph, 1);
+    AddShapesToWorld(&World, Sph2, 1);
 
     printf("Building BVH....\n");
     World.BVH =  BuildBVH(World.Shapes, World.ShapesCount, 0);
@@ -583,7 +660,7 @@ int main(int argCount, char **args) {
     
     work_queue Queue = {};
     Queue.MaxBounceCount = 8;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(64));
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(256));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

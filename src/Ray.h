@@ -48,6 +48,9 @@ enum material_types {
     Dielectric,
     Emissive,
     Volumetric,
+    Lambertian,
+    Microfacets,
+    Plastic,
     NumberOfMaterialTypes
 };
 
@@ -110,6 +113,37 @@ material VolumetricMaterial(f32 Density) {
     Result.Type = material_types::Volumetric;
     return Result;    
 }
+
+material LambertianMaterial(v3 ReflectionColor) {
+    material Result = {};
+    Result.Specular = 0;
+    Result.IndexOfRefraction = 1.0f;
+    Result.EmitionColor={};
+    Result.ReflectionColor = ReflectionColor;
+    Result.Type = material_types::Lambertian;
+    return Result;    
+}
+
+material MicrofacetsMaterial(v3 ReflectionColor) {
+    material Result = {};
+    Result.Specular = 0;
+    Result.IndexOfRefraction = 1.0f;
+    Result.EmitionColor={};
+    Result.ReflectionColor = ReflectionColor;
+    Result.Type = material_types::Microfacets;
+    return Result;    
+}
+
+material PlasticMaterial(v3 ReflectionColor) {
+    material Result = {};
+    Result.Specular = 0;
+    Result.IndexOfRefraction = 1.0f;
+    Result.EmitionColor={};
+    Result.ReflectionColor = ReflectionColor;
+    Result.Type = material_types::Plastic;
+    return Result;    
+}
+
 
 #define MAX_SHAPE_STRUCT_SIZE 2048
 
@@ -190,21 +224,21 @@ public:
     aabb AABB;
 };
 
-internal shape Sphere(v3 P, f32 r, u32 MatIndex) {
-    shape Result = {};
+internal shape* Sphere(v3 P, f32 r, u32 MatIndex) {
+    shape *Result = (shape*)malloc(sizeof(shape));
     
-    Result.Transform = Translate(Identity(), V3(P.x, P.y, P.z));
+    Result->Transform = Translate(Identity(), V3(P.x, P.y, P.z));
     
     
-    Result.Fields.SphereFields.Sphere.r = r;
-    Result.MatIndex = MatIndex;
+    Result->Fields.SphereFields.Sphere.r = r;
+    Result->MatIndex = MatIndex;
 
-    Result.AABB = {
+    Result->AABB = {
         V3(-r + P.x, -r + P.y, -r + P.z),
         V3(r + P.x, r + P.y, r + P.z)
     };
 
-    Result.Type = shape_type::sphereType;
+    Result->Type = shape_type::sphereType;
 
     return Result;
 }

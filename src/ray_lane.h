@@ -353,6 +353,22 @@ Cross(v3 A, v3 B)
     return(Result);
 }
 
+internal f32 V3Component(v3 Vector, u32 ComponentIndex) {
+    return *( ((f32*)(&Vector)) + ComponentIndex);
+}
+inline v3 operator+(v3 A, v3 B)
+{
+    v3 Result;
+    
+    Result.x = A.x + B.x;
+    Result.y = A.y + B.y;
+    Result.z = A.z + B.z;
+    
+    return(Result);
+}
+
+
+
 #include <algorithm>
 f32 Abs(f32 In)
 {
@@ -436,7 +452,7 @@ internal void ConditionalAssign(lane_v2 *Dest, lane_u32 Mask, lane_v2 Source) {
 }
 
 
-inline lane_v3 LaneV3FromLaneV3(v3 V) {
+inline lane_v3 LaneV3FromV3(v3 V) {
     lane_v3 Result;
     Result.x = LaneF32FromF32(V.x);
     Result.y = LaneF32FromF32(V.y);

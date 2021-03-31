@@ -111,12 +111,24 @@ material VolumetricMaterial(f32 Density) {
     return Result;    
 }
 
+#define MAX_SHAPE_STRUCT_SIZE 2048
 
+enum shape_type
+{
+    sphereType,
+    triangleType,
+    numShapeTypes
+};
 
 struct aabb{
-    lane_v3 min;
-    lane_v3 max;
+    v3 min;
+    v3 max;
 };
+
+v3 AABBCentroid(aabb AABB)
+{
+    return (AABB.min + AABB.max) * 0.5f;
+}
 
 
 struct plane
@@ -132,27 +144,43 @@ public:
 struct sphere
 {
 public:
-    lane_mat4 Transform;
-    
     f32 r;
-    u32 MatIndex;
-    aabb AABB;
 };
 
 struct triangle
 {
 public:
-    mat4 Transform;
-
     v3 V1;
-    v3 LaneV2;
-    v3 LaneV3;
+    v3 V2;
+    v3 V3;
 
-    v3 Normal;
+    v3 N1;
+    v3 N2;
+    v3 N3;
+};
 
-    u32 MatIndex;
 
+struct shape
+{
+    union fields
+    {
+        struct triangle_fields
+        {
+            triangle Triangle;
+            uint8_t padding[MAX_SHAPE_STRUCT_SIZE - sizeof(triangle)];
+        } TriangleFields;
+        
+        struct sphere_fields
+        {
+            sphere Sphere;
+            uint8_t padding[MAX_SHAPE_STRUCT_SIZE - sizeof(sphere)];
+        } SphereFields;
+    } Fields;
+    
+    shape_type Type;
     aabb AABB;
+    u32 MatIndex;
+    mat4 Transform;
 };
 
 struct volume
@@ -162,44 +190,53 @@ public:
     aabb AABB;
 };
 
-internal sphere Sphere(v3 P, f32 r, u32 MatIndex) {
-    sphere Result = {};
+internal shape Sphere(v3 P, f32 r, u32 MatIndex) {
+    shape Result = {};
     
-    Result.Transform = Lane_Translate(Lane_Identity(), LaneV3(P.x, P.y, P.z));
+    Result.Transform = Translate(Identity(), V3(P.x, P.y, P.z));
     
     
-    Result.r = r;
+    Result.Fields.SphereFields.Sphere.r = r;
     Result.MatIndex = MatIndex;
 
     Result.AABB = {
-        LaneV3(-r + P.x, -r + P.y, -r + P.z),
-        LaneV3(r + P.x, r + P.y, r + P.z)
+        V3(-r + P.x, -r + P.y, -r + P.z),
+        V3(r + P.x, r + P.y, r + P.z)
     };
+
+    Result.Type = shape_type::sphereType;
 
     return Result;
 }
 
-internal triangle Triangle(v3 V1, v3 LaneV2, v3 LaneV3, mat4 Transform, u32 MatIndex) {
-    triangle Result = {};
+internal shape Triangle(v3 Vertex1, v3 Vertex2, v3 Vertex3, v3 Normal1, v3 Normal2, v3 Normal3, mat4 Transform, u32 MatIndex) {
+    shape Result = {};
     
     Result.Transform = Transform;
+
+    v3 WorldV1 = TransformPosition(Transform, Vertex1);
+    v3 WorldV2 = TransformPosition(Transform, Vertex2);
+    v3 WorldV3 = TransformPosition(Transform, Vertex3);
     
-    Result.V1 = V1;
-    Result.LaneV2 = LaneV2;
-    Result.LaneV3 = LaneV3;
+    Result.Fields.TriangleFields.Triangle.V1 = WorldV1;
+    Result.Fields.TriangleFields.Triangle.V2 = WorldV2;
+    Result.Fields.TriangleFields.Triangle.V3 = WorldV3;
+    
+    Result.Fields.TriangleFields.Triangle.N1 = Normal1;
+    Result.Fields.TriangleFields.Triangle.N2 = Normal2;
+    Result.Fields.TriangleFields.Triangle.N3 = Normal3;
 
     Result.MatIndex = MatIndex;
 
-    v3 WorldV1 = TransformPosition(Transform, V1);
-    v3 WorldLaneV2 = TransformPosition(Transform, LaneV2);
-    v3 WorldLaneV3 = TransformPosition(Transform, LaneV3);
 
-    v3 MinPosition = Min(WorldV1, Min(WorldLaneV2, WorldLaneV3));
-    v3 MaxPosition = Max(WorldV1, Max(WorldLaneV2, WorldLaneV3));
+    v3 MinPosition = Min(WorldV1, Min(WorldV2, WorldV3));
+    v3 MaxPosition = Max(WorldV1, Max(WorldV2, WorldV3));
 
     Result.AABB = {
-        LaneV3FromLaneV3(MinPosition), LaneV3FromLaneV3(MaxPosition)
+        MinPosition, MaxPosition
     };
+    
+    Result.Type = shape_type::triangleType;
 
     return Result;    
 }
@@ -210,7 +247,7 @@ public:
     bvh *Left;
     bvh *Right;
     aabb AABB;
-    sphere *Spheres;
+    shape *Shapes;
 };
 
 struct world 
@@ -218,14 +255,11 @@ struct world
     u32 MaterialCount;
     material *Materials;
 
-    u32 PlaneCount;
-    plane *Planes;
+    u32 ShapesCount;
+    shape *Shapes;
 
-    u32 SphereCount;
-    sphere *Spheres;
-
-    u32 VolumeCount;
-    volume *Volumes;
+    // u32 VolumeCount;
+    // volume *Volumes;
 
     bvh *BVH;
 };

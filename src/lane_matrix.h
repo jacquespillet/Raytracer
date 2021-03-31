@@ -38,6 +38,7 @@ internal void ConditionalAssign(lane_mat4 *Dest, lane_u32 Mask, lane_mat4 Source
     ConditionalAssign(&Dest->Elements[15], Mask, Source.Elements[15]);
 }
 
+
 lane_mat2 operator*(lane_mat2 &Matrix, lane_f32 &Value)
 {
     lane_mat2 Result = {};
@@ -680,5 +681,19 @@ lane_mat4 Lane_Translate(lane_mat4 Matrix, lane_v3 Position)
     Lane_SetMatrixElement(&Result, 0, 3, Position.x);
     Lane_SetMatrixElement(&Result, 1, 3, Position.y);
     Lane_SetMatrixElement(&Result, 2, 3, Position.z);
+    return Result;
+}
+
+lane_mat4 LaneMat4FromMat4(mat4 Input)
+{
+    lane_mat4 Result = {};
+    for(u32 Row=0; Row < 4; Row++)
+    {
+        for(u32 Column=0; Column < 4; Column++)
+        {
+            Lane_SetMatrixElement(&Result, Row, Column, LaneF32FromF32(GetMatrixElement(Input, Row, Column)));
+        }        
+    }
+
     return Result;
 }

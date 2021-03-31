@@ -545,6 +545,15 @@ mat3 Scale(v2 Size)
     return Result;
 }
 
+mat4 Scale(v3 Size) 
+{
+    mat4 Result = Mat4F((1.0f));
+    SetMatrixElement(&Result, 0, 0, Size.x);
+    SetMatrixElement(&Result, 1, 1, Size.y);
+    SetMatrixElement(&Result, 2, 2, Size.z);
+    return Result;
+}
+
 mat3 Rotate(f32 Angle) 
 {
     mat3 Result = Mat3F((1.0f));
@@ -660,5 +669,11 @@ mat4 Translate(mat4 Matrix, v3 Position)
     SetMatrixElement(&Result, 0, 3, Position.x);
     SetMatrixElement(&Result, 1, 3, Position.y);
     SetMatrixElement(&Result, 2, 3, Position.z);
+    return Result;
+}
+
+mat4 Scale(mat4 Matrix, v3 ScaleFactor)
+{
+    mat4 Result = Scale(ScaleFactor) *  Matrix;
     return Result;
 }

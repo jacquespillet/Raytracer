@@ -102,15 +102,15 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
         
 #if 0
-        lane_v3 ReflectedDirection = Reflect(LocalRayDirection, LaneV3(0,0,1));
-        ReflectedDirection =NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
-        lane_f32 CosineTerm = Abs(Inner(ReflectedDirection, LaneV3(0,0,1)));
-        *RayDirection = TransformDirection(Transform, ReflectedDirection);
+        lane_v3 ReflectedDirection = Lane_Reflect(LocalRayDirection, LaneV3(0,0,1));
+        ReflectedDirection =Lane_NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
+        lane_f32 CosineTerm = Lane_Abs(Lane_Inner(ReflectedDirection, LaneV3(0,0,1)));
+        *RayDirection = Lane_TransformDirection(Transform, ReflectedDirection);
         ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
 #else
 
-#define MICROFACET 1
-#define LAMBERTIAN 0
+#define MICROFACET 0
+#define LAMBERTIAN 1
 #define PLASTIC 0
 #if MICROFACET
         //Sample BSDF to get the next path direction
@@ -124,7 +124,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
 
 #if LAMBERTIAN
         //Sample BSDF to get the next path direction
-        lambertian_reflection Reflection = LambertianReflection(LaneV3(1,1,1));
+        lambertian_reflection Reflection = LambertianReflection(LaneV3(0.5,0.5,0.5));
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
         lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
@@ -209,7 +209,7 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 camera CreateCamera(u32 Width, u32 Height)
 {
     f32 FilmDistance =  (1.0f);
-    lane_v3 CameraPosition = LaneV3(0, 3, 10);
+    lane_v3 CameraPosition = LaneV3(10, 10, 10);
     lane_v3 FilmCenter = LaneV3(0, 0, FilmDistance);
 
     camera Result = {};
@@ -292,22 +292,16 @@ internal void CastRays(cast_state *State)
 
             BouncesComputed += (LaneIncrement & LaneMask);
 
-            //PLANES
-            for(u32 PlaneIndex=0; PlaneIndex < World->PlaneCount; ++PlaneIndex) {
-                plane Plane = World->Planes[PlaneIndex];
-                HitPlane(&Plane, &Hit, RayOrigin, RayDirection, Tolerance, MinHitDistance);
-            }
-
             //SPHERES
             HitBVH(RayOrigin, RayDirection, Tolerance, MinHitDistance, BVH, &Hit, 0);
 
-            //VOLUMES
-            // for(u32 VolumeIndex=0; VolumeIndex < World->VolumeCount; ++VolumeIndex) {
-            //     volume Volume = World->Volumes[VolumeIndex];
-            //     HitVolume(&Volume, &Hit, RayOrigin, RayDirection, Tolerance, MinHitDistance, &Series);
+            // for(u32 i=0; i<World->ShapesCount; i++)
+            // {
+            //     if(World->Shapes[i].Type == shape_type::triangleType)
+            //     {
+            //         HitTriangle(&World->Shapes[i], &Hit, RayDirection, RayDirection, Tolerance, 0);
+            //     }
             // }
-
-
 
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
@@ -411,80 +405,119 @@ internal b32 RenderTile(work_queue *Queue) {
 
 
 internal aabb SurroundAABBs(aabb A, aabb B) {
-    lane_v3 SmallBound = { Lane_Min(A.min.x, B.min.x), Lane_Min(A.min.y, B.min.y), Lane_Min(A.min.z, B.min.z) };
-    lane_v3 BigBound = { Lane_Max(A.max.x, B.max.x), Lane_Max(A.max.y, B.max.y), Lane_Max(A.max.z, B.max.z) };
+    v3 SmallBound = { Min(A.min.x, B.min.x), Min(A.min.y, B.min.y), Min(A.min.z, B.min.z) };
+    v3 BigBound = { Max(A.max.x, B.max.x), Max(A.max.y, B.max.y), Max(A.max.z, B.max.z) };
     return { SmallBound, BigBound };
 }
 
 internal int BoxXCompare(const void *a, const void *b) {
-    sphere *lhs = (sphere*)a;
-    sphere *rhs = (sphere*)b;
+    shape *lhs = (shape*)a;
+    shape *rhs = (shape*)b;
     
-    lane_u32 Result = (lhs->AABB.min.x - rhs->AABB.min.x < 0.0f);
-    if(!MaskIsZeroed(Result)){
+    if(lhs->AABB.min.x - rhs->AABB.min.x < 0.0f)
+    {
         return -1;
-    } else {
+    }
+    else
+    {
         return 1;
     }
 }
 
 internal int BoxYCompare(const void *a, const void *b) {
-    sphere *lhs = (sphere*)a;
-    sphere *rhs = (sphere*)b;
+    shape *lhs = (shape*)a;
+    shape *rhs = (shape*)b;
     
-    lane_u32 Result = (lhs->AABB.min.y - rhs->AABB.min.y < 0.0f);
-    if(!MaskIsZeroed(Result)){
+    if(lhs->AABB.min.y - rhs->AABB.min.y < 0.0f)
+    {
         return -1;
-    } else {
+    }
+    else
+    {
         return 1;
     }
 }
 
 internal int BoxZCompare(const void *a, const void *b) {
-    sphere* lhs = (sphere*)a;
-    sphere* rhs = (sphere*)b;
+    shape* lhs = (shape*)a;
+    shape* rhs = (shape*)b;
     
-
-    lane_u32 Result = (lhs->AABB.min.z - rhs->AABB.min.z < 0.0f);
-    if(!MaskIsZeroed(Result)){
+    if(lhs->AABB.min.z - rhs->AABB.min.z < 0.0f)
+    {
         return -1;
-    } else {
+    }
+    else
+    {
         return 1;
     }
 }
 
-internal bvh *BuildBVH(sphere *Objects, int NumObjects, u32 level) {
+void AddShapesToWorld(world* World, shape *Shapes, u32 ShapesCount)
+{
+    World->Shapes = (shape*) realloc(World->Shapes, (World->ShapesCount + ShapesCount) * sizeof(shape)); 
+    memcpy(World->Shapes + World->ShapesCount, Shapes, ShapesCount * sizeof(shape));
+    World->ShapesCount += ShapesCount;
+    free(Shapes);
+}
+
+
+clock_t TimeElapsedBVH=0;
+internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
     bvh *Result = new bvh();
 
     // u32 axis = u32(3 * RandomUnilateralSlow());
     u32 axis = level % 3;
 
+
+    clock_t StartClock = clock();
     if(axis==0){
-        qsort(Objects, NumObjects, sizeof(sphere), BoxXCompare);
+        qsort(Objects, NumObjects, sizeof(shape), BoxXCompare);
     }
     else if(axis==1){
-        qsort(Objects, NumObjects, sizeof(sphere), BoxYCompare);
+        qsort(Objects, NumObjects, sizeof(shape), BoxYCompare);
     }
     else {
-        qsort(Objects, NumObjects, sizeof(sphere), BoxZCompare);
+        qsort(Objects, NumObjects, sizeof(shape), BoxZCompare);
     }
+    
+    clock_t EndClock = clock();
+    TimeElapsedBVH += EndClock - StartClock;
 
     if(NumObjects==1) {
         Result->Left = new bvh();
         Result->Right = new bvh();
-        Result->Left->Spheres = Result->Right->Spheres = Objects;
-        Result->Left->AABB = Result->Left->Spheres->AABB;
-        Result->Right->AABB = Result->Right->Spheres->AABB;
+        Result->Left->Shapes = Result->Right->Shapes = Objects;
+        Result->Left->AABB = Result->Left->Shapes->AABB;
+        Result->Right->AABB = Result->Right->Shapes->AABB;
     }
     else if(NumObjects==2) {
         Result->Left = new bvh();
         Result->Right = new bvh();
-        Result->Left->Spheres = Objects;
-        Result->Right->Spheres = Objects + 1;
-        Result->Left->AABB = Result->Left->Spheres->AABB;
-        Result->Right->AABB = Result->Right->Spheres->AABB;
+        Result->Left->Shapes = Objects;
+        Result->Right->Shapes = Objects + 1;
+        Result->Left->AABB = Result->Left->Shapes->AABB;
+        Result->Right->AABB = Result->Right->Shapes->AABB;
     } else {
         level ++;
+            // std::nth_element(v.begin(), v.begin() + v.size()/2, v.end());
+            // std::nth_element(v.begin(), v.begin()+1, v.end(), std::greater<int>());
+            // std::nth_element(Objects, Objects + NumObjects/2,
+            //         Objects + NumObjects,
+            //         [axis](shape a,
+            //             shape b) {
+            //             if(axis==0)
+            //             {
+            //                 return AABBCentroid(a.AABB).x < AABBCentroid(b.AABB).x;
+            //             }
+            //             else if(axis==1)
+            //             {
+            //                 return AABBCentroid(a.AABB).y < AABBCentroid(b.AABB).y;
+            //             }
+            //             else
+            //             {
+            //                 return AABBCentroid(a.AABB).z < AABBCentroid(b.AABB).z;
+            //             }
+            //         });
         Result->Left = BuildBVH(Objects, NumObjects/2, level);
         Result->Right = BuildBVH(Objects + NumObjects/2, NumObjects - NumObjects/2, level);
     }
@@ -494,14 +527,14 @@ internal bvh *BuildBVH(sphere *Objects, int NumObjects, u32 level) {
     return Result;
 }
 
+#include "mesh.h"
+
 #define TEST_STUFF 0
 
 int main(int argCount, char **args) {
 
 #if TEST_STUFF
-    lane_u32 test=0;
-    lane_u32 test2 = Not(test);
-    printf("%d", test2);
+
 
 #else
 
@@ -516,41 +549,27 @@ int main(int argCount, char **args) {
         VolumetricMaterial(1.2f)
     };
    
-    //Normal, distance, matIndex
-    plane Planes[] = {
-        {{0, 1, 0},{1.2f}, 4}
-        // ,{{0, 0, -1},{2}, 2} 
-    };
  
-    triangle Triangles[] {
-        Triangle({-10, 0, 0}, {0, 10, 0}, {10, 0, 0}, Identity(), 3)
-    };
+    u32 Cube1Count;
+    shape* Cube1 = MeshFromFile("models/cube/cube.obj", &Cube1Count, 4, Translate(Identity(), V3(0, 0, 0)));
  
-    sphere Spheres[] {
-        Sphere({-1,  -0.7, 0}, 0.5, 4),
-		Sphere({0,  -0.7,0}, 0.5, 1)
-        ,Sphere({0.5,  -0.7,1.5}, 0.5, 3)
-    };
-    
-    volume Volumes[] {
-        {6 ,{{-0.5,-0.5,-0.5},{0.5,0.5,0.5}}}
-    };
-    
+    u32 GroundCount;
+    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 4, Scale(Identity(), V3(5, 5, 5)));
+
+    u32 Cube2Count;
+    shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 4, Translate(Identity(), V3(1, 0, 0)));
     
     world World = {};
     World.MaterialCount = ArrayCount(Materials);
     World.Materials = Materials;
 
-    World.PlaneCount = ArrayCount(Planes);
-    World.Planes = Planes;
+    AddShapesToWorld(&World, Cube1, Cube1Count);
+    AddShapesToWorld(&World, Cube2, Cube2Count);
+    AddShapesToWorld(&World, Ground, GroundCount);
 
-    World.VolumeCount = ArrayCount(Volumes);
-    World.Volumes = Volumes;
-    
-    World.SphereCount = ArrayCount(Spheres);
-    World.Spheres = Spheres;
-
-    World.BVH =  BuildBVH((sphere*)&Spheres, ArrayCount(Spheres), 0);
+    printf("Building BVH....\n");
+    World.BVH =  BuildBVH(World.Shapes, World.ShapesCount, 0);
+    printf("Finished BVH %d \n ", TimeElapsedBVH);
 
     image_32 Image = AllocateImage(1080, 720);
     
@@ -660,6 +679,7 @@ int main(int argCount, char **args) {
         
     WriteImage(Image, "test.bmp");    
 
+    free(World.Shapes);
 
 #endif
     return 0;

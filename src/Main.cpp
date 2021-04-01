@@ -74,7 +74,7 @@ internal u32 GetCPUCoreCount(void)
 
 
 //RAYTRACING
-lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane_v3 *Attenuation, lane_v3 *RayDirection) {
+lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane_v3 *Attenuation, lane_v3 *RayDirection, lane_v2 BrdfSample) {
     //Get material properties
     lane_mat4 Transform = Hit.Transform;
     lane_mat4 InverseTransform = Hit.InverseTransform;
@@ -100,57 +100,11 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     {
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
-#if 0
         lane_v3 ReflectedDirection = Lane_Reflect(LocalRayDirection, LaneV3(0,0,1));
         ReflectedDirection =Lane_NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
         lane_f32 CosineTerm = Lane_Abs(Lane_Inner(ReflectedDirection, LaneV3(0,0,1)));
         *RayDirection = Lane_TransformDirection(Transform, ReflectedDirection);
         ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
-#else
-
-#define MICROFACET 0
-#define LAMBERTIAN 1
-#define PLASTIC 0
-#if MICROFACET
-        //Sample BSDF to get the next path direction
-        microfacet_reflection Reflection = MicrofacetReflection(LaneV3(1,1,1));
-        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
-        lane_f32 pdf=LaneF32FromF32(0.0f);
-        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
-        
-        lane_v3 brdf = MicroFacetReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
-#endif
-
-#if LAMBERTIAN
-        //Sample BSDF to get the next path direction
-        lambertian_reflection Reflection = LambertianReflection(LaneV3(0.5,0.5,0.5));
-        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
-        lane_f32 pdf=LaneF32FromF32(0.0f);
-        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
-
-        lane_v3 brdf = LambertianReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
-#endif
-
-#if PLASTIC
-        //Sample BSDF to get the next path direction
-        plastic_material Reflection = PlasticMaterial();
-        
-        lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
-        lane_f32 pdf=LaneF32FromF32(0.0f);
-        lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
-        lane_f32 RandomBxDF = RandomUnilateral(Series);
-        lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random,RandomBxDF,  &pdf);
-
-        // DeletePlasticMaterial(&Reflection);
-#endif
-
-        lane_u32 pdfGT0 = pdf > 0;
-        lane_u32 localMask = MetalicMaterialMask & pdfGT0;
-
-            lane_v3 MetalicAttenuation = brdf * Lane_Abs(Lane_Inner(OutputDirection, LaneV3(0,0,1))) * (1.0f / pdf);            
-            ConditionalAssign(RayDirection, localMask, Lane_TransformDirection(Transform, OutputDirection));
-            ConditionalAssign(Attenuation, localMask, MetalicAttenuation);
-#endif
     }
     
     lane_u32 PlasticMaterialMask = (MaterialType == LaneU32FromU32(material_types::Plastic));
@@ -162,9 +116,12 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         
         //Sample BSDF to get the next path direction
         plastic_material Reflection = PlasticMaterial();
+        Reflection.Lambertian.R = MatRefColor;
+        Reflection.Microfacets.R = MatRefColor;
         
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
+        // lane_v2 Random = BrdfSample;
         lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
         lane_f32 RandomBxDF = RandomUnilateral(Series);
         lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random,RandomBxDF,  &pdf);
@@ -188,6 +145,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         microfacet_reflection Reflection = MicrofacetReflection(MatRefColor);
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
+        // lane_v2 Random = BrdfSample;
         lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
         
         lane_v3 brdf = MicroFacetReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
@@ -212,6 +170,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         lambertian_reflection Reflection = LambertianReflection(MatRefColor);
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
+        // lane_v2 Random = BrdfSample;
         lane_v2 Random = {RandomUnilateral(Series), RandomUnilateral(Series)};
 
         lane_v3 brdf = LambertianReflection_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random, &pdf);
@@ -259,7 +218,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     return LaneU32FromU32(0xffffffff);
 }
 
-internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v3 SubPixelSample, random_series *Series, lane_v3 *OutRayOrigin, lane_v3 *OutRayDirection) {
+internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v2 SubPixelSample, random_series *Series, lane_v3 *OutRayOrigin, lane_v3 *OutRayDirection) {
     //Offset within the pixel
     lane_f32 OffX = (2.0f * SubPixelSample.x - 1.0f) * Camera.HalfPixW + FilmX + Camera.HalfPixW;
     lane_f32 OffY = (2.0f * SubPixelSample.y - 1.0f) * Camera.HalfPixH + FilmY + Camera.HalfPixH;
@@ -331,10 +290,14 @@ internal void CastRays(cast_state *State)
     lane_f32 RayContrib = LaneF32FromF32( 1.0f / (f32)(RaysPerPixel)); //We accumulate within the pixel and divide at the end
 
 
-    lane_v3 *SubPixelSamples = (lane_v3 *) malloc(LaneRayCount * sizeof(lane_v3));
-    MultiJitter((lane_v3*)SubPixelSamples, RaysPerPixel, &State->Series);
-
     
+    MultiJitter((lane_v2*)State->SubPixelSamples, LaneRayCount, &Series);
+    
+    MultiJitter(State->BrdfSamples[0], LaneRayCount, &Series);
+    // ShuffleArray(BrdfSamples[0], LaneRayCount, &Series);
+    MultiJitter(State->BrdfSamples[1], LaneRayCount, &Series);
+    ShuffleArray(State->BrdfSamples[1], LaneRayCount, &Series);
+
     for(u32 RayIndex=0; RayIndex < LaneRayCount; ++RayIndex) {
 
         lane_f32 Tolerance = LaneF32FromF32(0.0001f);
@@ -347,7 +310,7 @@ internal void CastRays(cast_state *State)
 
 
         lane_v3 RayOrigin, RayDirection;
-        GetCameraRay(State->Camera, FilmX, FilmY, *(SubPixelSamples + RayIndex), &State->Series, &RayOrigin, &RayDirection);
+        GetCameraRay(State->Camera, FilmX, FilmY, State->SubPixelSamples[RayIndex], &State->Series, &RayOrigin, &RayDirection);
         
         //Casting the ray through the scene
         for(u32 RayCount=0; RayCount < BounceCount; RayCount++) {
@@ -362,16 +325,7 @@ internal void CastRays(cast_state *State)
 
             BouncesComputed += (LaneIncrement & LaneMask);
 
-            //SPHERES
             HitBVH(RayOrigin, RayDirection, Tolerance, MinHitDistance, BVH, &Hit, 0);
-
-            // for(u32 i=0; i<World->ShapesCount; i++)
-            // {
-            //     if(World->Shapes[i].Type == shape_type::triangleType)
-            //     {
-            //         HitTriangle(&World->Shapes[i], &Hit, RayDirection, RayDirection, Tolerance, 0);
-            //     }
-            // }
 
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
@@ -393,8 +347,18 @@ internal void CastRays(cast_state *State)
                 //Compute lighting
                 // lane_v3 HitPointAttenuation = ComputeHitPointAttenuation(World, Hit.MaterialIndex, Hit, &RayDirection, &Series);
                 
+                lane_v2 brdfSample;
+                if(RayCount < 2) {
+                    //brdfSample = State->BrdfSamples[RayCount][RayIndex];
+                    brdfSample = {RandomUnilateral(&Series), RandomUnilateral(&Series)};
+                }
+                else
+                {
+                    brdfSample = {RandomUnilateral(&Series), RandomUnilateral(&Series)};
+                }
+
                 lane_v3 HitPointAttenuation; 
-                LaneMask &= SampleMaterial(World->Materials, Hit, &Series, &HitPointAttenuation, &RayDirection);
+                LaneMask &= SampleMaterial(World->Materials, Hit, &Series, &HitPointAttenuation, &RayDirection,  brdfSample);
                 
                 RayOrigin = Hit.Position; 
                 Attenuation = Lane_Hadamard(Attenuation, HitPointAttenuation);
@@ -402,7 +366,6 @@ internal void CastRays(cast_state *State)
         }
         FinalColor += RayContrib * Sample;
     }
-    free(SubPixelSamples);
     
     State->FinalColor = HorizontalAdd(FinalColor);
     State->BouncesComputed = HorizontalAdd(BouncesComputed);
@@ -441,6 +404,13 @@ internal b32 RenderTile(work_queue *Queue) {
 
     State.Series = Order->Entropy;
 
+
+    u32 LaneWidth = LANE_WIDTH;
+    u32 LaneRayCount = (State.RaysPerPixel / LaneWidth);
+    State.SubPixelSamples = (lane_v2 *) malloc(LaneRayCount * sizeof(lane_v2));
+    State.BrdfSamples[0] = (lane_v2*) malloc(LaneRayCount * sizeof(lane_v2));
+    State.BrdfSamples[1] = (lane_v2*) malloc(LaneRayCount * sizeof(lane_v2));
+
     //Loop through all the pixels of the tile
     u64 BouncesComputed=0;
     for(u32 y =YMin; y<OnePassYMax; y++) {
@@ -468,6 +438,10 @@ internal b32 RenderTile(work_queue *Queue) {
     }
     LockedAddAndReturnPreviousValue(&Queue->BouncesComputed, State.BouncesComputed);
     LockedAddAndReturnPreviousValue(&Queue->TileRetiredCount, 1);
+
+    free(State.SubPixelSamples);
+    free(State.BrdfSamples[0]);
+    free(State.BrdfSamples[1]);
 
     return true;
 }
@@ -604,8 +578,40 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
 int main(int argCount, char **args) {
 
 #if TEST_STUFF
+    int size = 512;
+    int numSamples = NextPowerOfTwo(1024);
+
+    random_series Entropy = {LaneU32FromU32(rand())}; 
+    lane_v2 *Samples = (lane_v2*) malloc(numSamples * sizeof(lane_v2));
+    // MultiJitter(Samples, numSamples, &Entropy);
+    Jitter(Samples, numSamples, &Entropy);
+    //ShuffleArray(Samples, numSamples, &Entropy);
 
 
+    image_32 Image = AllocateImage(size, size);
+
+    for(int y=0; y<size; y++)
+    {
+        for(int x=0; x<size; x++)
+        {
+               u32 *Pixel = GetPixelPointer(Image, x, y); 
+                *Pixel = 0;
+        }
+    }
+
+    
+
+    for(int i=0; i<numSamples; i++)
+    {
+        lane_v2 Sample = Samples[i];
+        u32 x = Max(0, Min(size, Sample.x * size));
+        u32 y = Max(0, Min(size, Sample.y * size));
+        u32 *Pixel = GetPixelPointer(Image, x, y); 
+        *Pixel = 0xffffffff;
+    }
+
+    WriteImage(Image, "random.bmp");
+    free(Samples);
 #else
 
     //Specular, emition, reflection
@@ -614,9 +620,9 @@ int main(int argCount, char **args) {
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
         MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.25F),
         DielectricMaterial(1.2f),
-        LambertianMaterial({1.0f, 1.0f, 1.0f}),
+        LambertianMaterial({0.0f, 1.0f, 0.0f}),
         MicrofacetsMaterial({0.1f, 0.8f, 0.2f}),
-        PlasticMaterial({0.2f, 0.3f, 0.7f}),
+        PlasticMaterial({1.0f, 0.0f, 0.0f}),
         EmissiveMaterial({10,10,10})
     };
    
@@ -628,7 +634,7 @@ int main(int argCount, char **args) {
     shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 5, Translate(Identity(), V3(1, 0, 0)));
     shape *Sph2 = Sphere(V3(4, 4, 0), 1, 7);
 
-    shape *Sph = Sphere(V3(0, 1, 0), 1, 5);
+    shape *Sph = Sphere(V3(0, 1, 0), 1, 4);
     
     u32 GroundCount;
     shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 6, Scale(Identity(), V3(5, 5, 5)));
@@ -642,7 +648,7 @@ int main(int argCount, char **args) {
     // AddShapesToWorld(&World, Cube2, Cube2Count);
     AddShapesToWorld(&World, Ground, GroundCount);
     AddShapesToWorld(&World, Sph, 1);
-    AddShapesToWorld(&World, Sph2, 1);
+    // AddShapesToWorld(&World, Sph2, 1);
 
     printf("Building BVH....\n");
     World.BVH =  BuildBVH(World.Shapes, World.ShapesCount, 0);
@@ -660,7 +666,7 @@ int main(int argCount, char **args) {
     
     work_queue Queue = {};
     Queue.MaxBounceCount = 8;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(256));
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(128));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

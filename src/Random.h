@@ -59,83 +59,68 @@ internal f32 RandomBilateralSlow(f32 min, f32 max){
     return Result;
 }
 
-//
-struct PixelSamples {
-    f32 NumSubPixelSamples;
-    lane_v3 *SubPixelSamples;
-};
-
 
 ///IMPORTANCE SAMPLING
 
-internal lane_v3 *CosineWeightedInSphere(u32 NumSamples) {
+internal void Jitter(lane_v2 *WideSamples, u32 NumSamples, random_series *Series) {
+    v2 *Samples = (v2*) malloc(NumSamples * sizeof(v2));
 
+    u32 Width = (u32)SquareRoot(NumSamples);
+    f32 CellSize = 1.0f / (f32)(Width);
+
+    for(u32 i=0; i<Width;i++) {
+        for(u32 j=0; j<Width;j++) {
+            Samples[i * Width + j].x = i * CellSize + Extract0(RandomUnilateral(Series)) * CellSize;
+            Samples[i * Width + j].y = j * CellSize + Extract0(RandomUnilateral(Series)) * CellSize;
+        }
+    }
+
+    for(u32 SingleSampleIndex=0; SingleSampleIndex<NumSamples; SingleSampleIndex+= LANE_WIDTH) {
+#if(LANE_WIDTH == 1)
+        
+        (*WideSamples).x = LaneF32FromF32(Samples[SingleSampleIndex+0].x);
+        (*WideSamples).y = LaneF32FromF32(Samples[SingleSampleIndex+0].y);
+#elif (LANE_WIDTH == 4)
+        
+        (*WideSamples).x = LaneF32FromF32(Samples[SingleSampleIndex+0].x,
+                                        Samples[SingleSampleIndex+1].x,
+                                        Samples[SingleSampleIndex+2].x,
+                                        Samples[SingleSampleIndex+3].x
+                                        );
+        (*WideSamples).y = LaneF32FromF32(Samples[SingleSampleIndex+0].y,
+                                        Samples[SingleSampleIndex+1].y,
+                                        Samples[SingleSampleIndex+2].y,
+                                        Samples[SingleSampleIndex+3].y
+                                        );
+#elif(LANE_WIDTH == 8)
+        
+            (*WideSamples).x = LaneF32FromF32(Samples[SingleSampleIndex+0].x,
+                                            Samples[SingleSampleIndex+1].x,
+                                            Samples[SingleSampleIndex+2].x,
+                                            Samples[SingleSampleIndex+3].x,
+                                            Samples[SingleSampleIndex+4].x,
+                                            Samples[SingleSampleIndex+5].x,
+                                            Samples[SingleSampleIndex+6].x,
+                                            Samples[SingleSampleIndex+7].x
+                                            );
+            (*WideSamples).y = LaneF32FromF32(Samples[SingleSampleIndex+0].y,
+                                            Samples[SingleSampleIndex+1].y,
+                                            Samples[SingleSampleIndex+2].y,
+                                            Samples[SingleSampleIndex+3].y,
+                                            Samples[SingleSampleIndex+4].y,
+                                            Samples[SingleSampleIndex+5].y,
+                                            Samples[SingleSampleIndex+6].y,
+                                            Samples[SingleSampleIndex+7].y
+                                            );
+#endif
+        WideSamples++;
+    }
+
+    free(Samples);
 }
 
-internal lane_v3 CosineWeightedInSpherePdf(lane_v3 Direction) {
-    
-}
-
-internal lane_v3 *UniformSphere(u32 NumSamples) {
-
-}
-
-internal lane_v3 UniformSpherePdf(lane_v3 Direction) {
-
-}
-
-internal lane_v3 *UniformInSquare(u32 NumSamples) {
-
-}
-
-internal lane_v3 *UniformInDisk(u32 NumSamples) {
-
-}
-
-// internal void Jitter(lane_v3 *WideSamples, int NumSamples, random_series *Series) {
-//     v3 *Samples = (v3*) malloc(NumSamples * sizeof(v3));
-
-//     u32 Width = (u32)SquareRoot(NumSamples);
-//     f32 CellSize = 1.0f / (f32)(NumSamples);
-
-//     for(u32 i=0; i<Width;i++) {
-//         for(u32 j=0; j<Width;j++) {
-//             f32 x = ((f32)i + Extract0(RandomUnilateral(Series))) / (f32)Width;
-//             f32 y = ((f32)j + Extract0(RandomUnilateral(Series))) / (f32)Width;
-
-//             Samples[i * Width + j].x = x;
-//             Samples[i * Width + j].y = y;
-//         }
-//     }
-
-//     for(u32 SingleSampleIndex=0; SingleSampleIndex<NumSamples; SingleSampleIndex+= LANE_WIDTH) {
-//         (*WideSamples).x = LaneF32FromF32(Samples[SingleSampleIndex+0].x,
-//                                         Samples[SingleSampleIndex+1].x,
-//                                         Samples[SingleSampleIndex+2].x,
-//                                         Samples[SingleSampleIndex+3].x,
-//                                         Samples[SingleSampleIndex+4].x,
-//                                         Samples[SingleSampleIndex+5].x,
-//                                         Samples[SingleSampleIndex+6].x,
-//                                         Samples[SingleSampleIndex+7].x
-//                                         );
-//         (*WideSamples).y = LaneF32FromF32(Samples[SingleSampleIndex+0].y,
-//                                         Samples[SingleSampleIndex+1].y,
-//                                         Samples[SingleSampleIndex+2].y,
-//                                         Samples[SingleSampleIndex+3].y,
-//                                         Samples[SingleSampleIndex+4].y,
-//                                         Samples[SingleSampleIndex+5].y,
-//                                         Samples[SingleSampleIndex+6].y,
-//                                         Samples[SingleSampleIndex+7].y
-//                                         );
-//         WideSamples++;
-//     }
-
-//     free(Samples);  
-// }
-
-
-internal void MultiJitter(lane_v3 *WideSamples, u32 NumSamples, random_series *Series) {
-    v3 *Samples = (v3*) malloc(NumSamples * sizeof(v3));
+internal void MultiJitter(lane_v2 *WideSamples, u32 NumSamples, random_series *Series) {
+    v2 *Samples = (v2*) malloc(NumSamples * sizeof(v2));
 
     u32 Width = (u32)SquareRoot(NumSamples);
     f32 CellSize = 1.0f / (f32)(NumSamples);
@@ -204,4 +189,16 @@ internal void MultiJitter(lane_v3 *WideSamples, u32 NumSamples, random_series *S
     }
 
     free(Samples);
+}
+
+void ShuffleArray(lane_v2 *Samples, u32 NumSamples, random_series *Entropy)
+{
+    u32 n = NumSamples;
+    for (u32 i = 0; i < NumSamples; i++)
+    {
+        u32 j = Extract0(RandomUnilateral(Entropy))  * NumSamples - 1;
+        lane_v2 t = Samples[j];
+        Samples[j] = Samples[i];
+        Samples[i] = t;
+    }
 }

@@ -305,7 +305,8 @@ struct world
 struct work_order 
 {
     world *World;
-    image_32 Image;
+    image_32 
+    Image;
     u32 MinX;
     u32 MinY;
     u32 OnePastXMax;
@@ -353,6 +354,10 @@ struct cast_state
     world *World; 
     u32 RaysPerPixel; 
     u32 BounceCount; 
+
+    //Memory arenas
+    lane_v2 *BrdfSamples[2];
+    lane_v2 *SubPixelSamples;
     
     camera Camera;
 

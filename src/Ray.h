@@ -89,7 +89,7 @@ material EmissiveMaterial(v3 EmitionColor) {
     Result.Specular = 0;
     Result.EmitionColor=EmitionColor;
     Result.ReflectionColor = {};
-    Result.Type = material_types::Diffuse;
+    Result.Type = material_types::Emissive;
     return Result;    
 }
 

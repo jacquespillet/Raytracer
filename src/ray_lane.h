@@ -1,5 +1,5 @@
 #if !defined(LANE_WIDTH)
-#define LANE_WIDTH 4
+#define LANE_WIDTH 8
 #endif
 
 struct v2 
@@ -429,6 +429,12 @@ u32 Extract0(lane_u32 A) {
 f32 Extract0(lane_f32 A) {
     f32 Result;
     Result = *(f32 *)&A;
+    return Result;
+}
+
+f32 ExtractAt(lane_f32 A, u32 Index) {
+    f32 Result;
+    Result = *((f32 *)&A + Index);
     return Result;
 }
 

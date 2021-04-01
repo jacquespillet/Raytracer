@@ -146,6 +146,15 @@ internal void MultiJitter(lane_v2 *WideSamples, u32 NumSamples, random_series *S
             Samples[k * Width + i].y = t;
         }
     }
+    
+    if(Width * Width < NumSamples)
+    {
+        for(u32 i=Width * Width-1; i<NumSamples; i++)
+        {
+            Samples[i].x = Extract0(RandomUnilateral(Series));
+            Samples[i].y = Extract0(RandomUnilateral(Series));
+        }
+    }
 
     for(u32 SingleSampleIndex=0; SingleSampleIndex<NumSamples; SingleSampleIndex+= LANE_WIDTH) {
 #if(LANE_WIDTH == 1)

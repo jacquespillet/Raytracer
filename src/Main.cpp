@@ -98,11 +98,14 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
     lane_u32 MetalicMaterialMask = (MaterialType == LaneU32FromU32(material_types::Metalic));
     if(!MaskIsZeroed(MetalicMaterialMask)) 
     {
+        lane_v3 LocalNormal = LaneV3(0,0,1);
+
         lane_v3 MatRefColor  = GatherLaneV3(Materials, Hit.MaterialIndex, ReflectionColor);
         lane_f32 MatSpecular  = GatherF32(Materials, Hit.MaterialIndex, Specular);
-        lane_v3 ReflectedDirection = Lane_Reflect(LocalRayDirection, LaneV3(0,0,1));
+        lane_v3 ReflectedDirection = Lane_Reflect(LocalRayDirection, LocalNormal);
         ReflectedDirection =Lane_NOZ(ReflectedDirection + MatSpecular * RandomInSphere(Series));
-        lane_f32 CosineTerm = Lane_Abs(Lane_Inner(ReflectedDirection, LaneV3(0,0,1)));
+        lane_f32 CosineTerm = Lane_Abs(Lane_Inner(ReflectedDirection, LocalNormal));
+        
         *RayDirection = Lane_TransformDirection(Transform, ReflectedDirection);
         ConditionalAssign(Attenuation, MetalicMaterialMask, CosineTerm *  MatRefColor);
     }
@@ -235,7 +238,7 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 camera CreateCamera(u32 Width, u32 Height)
 {
     f32 FilmDistance =  (1.0f);
-    lane_v3 CameraPosition = LaneV3(10, 10, 10);
+    lane_v3 CameraPosition = LaneV3(-2, 2, -2);
     lane_v3 FilmCenter = LaneV3(0, 0, FilmDistance);
 
     camera Result = {};
@@ -322,11 +325,11 @@ internal void CastRays(cast_state *State)
             BouncesComputed += (LaneIncrement & LaneMask);
 
             HitBVH(RayOrigin, RayDirection, Tolerance, MinHitDistance, BVH, &Hit, 0);
-
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
             Sample += Lane_Hadamard(Attenuation, MatEmitColor); //Add to the current pixel sample the value of the emitted color that we have hit times the current attenuation
             
+           
             //Sample 1 light from the point of intersection
             //Sample += Sample1Light(Hit.Point);    
 
@@ -336,6 +339,7 @@ internal void CastRays(cast_state *State)
             //Same if we directly hit an emitted, we can stop tracing.
             LaneMask = LaneMask & (MatEmitColor == ZeroVector);
             
+            
             //If all the rays in the lane are done, we break out of the loop
             if(MaskIsZeroed(LaneMask)) {
                 break;
@@ -344,20 +348,23 @@ internal void CastRays(cast_state *State)
                 // lane_v3 HitPointAttenuation = ComputeHitPointAttenuation(World, Hit.MaterialIndex, Hit, &RayDirection, &Series);
                 
                 lane_v2 brdfSample;
-                 if(RayCount < 2) {
-                    //  brdfSample = State->BrdfSamples[RayCount][RayIndex];
-                     brdfSample = {RandomUnilateral(&Series), RandomUnilateral(&Series)};
-                 }
-                 else
-                 {
-                     brdfSample = {RandomUnilateral(&Series), RandomUnilateral(&Series)};
-                 }
+                if(RayCount < 2) {
+                    brdfSample = State->BrdfSamples[RayCount][RayIndex];
+                }
+                else
+                {
+                    brdfSample = {RandomUnilateral(&Series), RandomUnilateral(&Series)};
+                }
+   
 
                 lane_v3 HitPointAttenuation; 
                 LaneMask &= SampleMaterial(World->Materials, Hit, &Series, &HitPointAttenuation, &RayDirection,  brdfSample);
                 
-                RayOrigin = Hit.Position; 
+                RayOrigin = Hit.Position + Hit.Normal * LaneF32FromF32(0.00005f);
+                // RayOrigin = Hit.Position;
+                    
                 Attenuation = Lane_Hadamard(Attenuation, HitPointAttenuation);
+                //Attenuation = LaneV3(1,0,0); 
             }
         }
         FinalColor += RayContrib * Sample;
@@ -500,7 +507,7 @@ void AddShapesToWorld(world* World, shape *Shapes, u32 ShapesCount)
     free(Shapes);
 }
 
-
+#define BVH_QSORT 0
 clock_t TimeElapsedBVH=0;
 internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
     bvh *Result = new bvh();
@@ -508,7 +515,7 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
     // u32 axis = u32(3 * RandomUnilateralSlow());
     u32 axis = level % 3;
 
-
+#if BVH_QSORT==1
     clock_t StartClock = clock();
     if(axis==0){
         qsort(Objects, NumObjects, sizeof(shape), BoxXCompare);
@@ -519,9 +526,10 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
     else {
         qsort(Objects, NumObjects, sizeof(shape), BoxZCompare);
     }
-    
-    clock_t EndClock = clock();
     TimeElapsedBVH += EndClock - StartClock;
+    clock_t EndClock = clock();
+#endif
+
 
     if(NumObjects==1) {
         Result->Left = new bvh();
@@ -539,25 +547,26 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
         Result->Right->AABB = Result->Right->Shapes->AABB;
     } else {
         level ++;
-            // std::nth_element(v.begin(), v.begin() + v.size()/2, v.end());
-            // std::nth_element(v.begin(), v.begin()+1, v.end(), std::greater<int>());
-            // std::nth_element(Objects, Objects + NumObjects/2,
-            //         Objects + NumObjects,
-            //         [axis](shape a,
-            //             shape b) {
-            //             if(axis==0)
-            //             {
-            //                 return AABBCentroid(a.AABB).x < AABBCentroid(b.AABB).x;
-            //             }
-            //             else if(axis==1)
-            //             {
-            //                 return AABBCentroid(a.AABB).y < AABBCentroid(b.AABB).y;
-            //             }
-            //             else
-            //             {
-            //                 return AABBCentroid(a.AABB).z < AABBCentroid(b.AABB).z;
-            //             }
-            //         });
+#if BVH_QSORT ==0
+        std::nth_element(Objects, Objects + NumObjects/2,
+        Objects + NumObjects,
+        [axis](shape a,
+            shape b) {
+            if(axis==0)
+            {
+                return AABBCentroid(a.AABB).x < AABBCentroid(b.AABB).x;
+            }
+            else if(axis==1)
+            {
+                return AABBCentroid(a.AABB).y < AABBCentroid(b.AABB).y;
+            }
+            else
+            {
+                return AABBCentroid(a.AABB).z < AABBCentroid(b.AABB).z;
+            }
+        });
+#endif
+
         Result->Left = BuildBVH(Objects, NumObjects/2, level);
         Result->Right = BuildBVH(Objects + NumObjects/2, NumObjects - NumObjects/2, level);
     }
@@ -569,7 +578,7 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
 
 #include "mesh.h"
 
-#define TEST_STUFF 1
+#define TEST_STUFF 0
 
 int main(int argCount, char **args) {
 
@@ -637,22 +646,27 @@ int main(int argCount, char **args) {
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
         DiffuseMaterial({0.7f, 0.1f, 0.1f}),
         EmissiveMaterial({30.0f, 30.0f, 30.0f}),
-        MetallicMaterial({0.2f, 0.8f, 0.2f}, 0.25F),
+        PlasticMaterial({0.2f, 0.8f, 0.2f}),
         DielectricMaterial(1.2f),
-        LambertianMaterial({0.0f, 1.0f, 0.0f}),
+        LambertianMaterial({0.3f, 0.7f, 0.1f}),
         MicrofacetsMaterial({0.1f, 0.8f, 0.2f}),
         PlasticMaterial({1.0f, 0.0f, 0.0f}),
-        EmissiveMaterial({10,10,10})
+        EmissiveMaterial({15,15,15})
     };
    
  
     
-    shape *Sph2 = Sphere(V3(2, 1, 0), 1, 1);
-    shape *Sph = Sphere(V3(0, 1, 0), 1, 1);
-    shape *Sph3 = Sphere(V3(1, 1, 2), 0.5, 3);
+    shape *Sph =  Sphere(V3(-1, 0, 0), 0.5, 8);
+    shape *Sph2 = Sphere(V3(0, 0, -2), 0.5, 9);
+    shape *Sph3 = Sphere(V3(1, 0, 0), 0.5, 1);
+    shape *Sph4 = Sphere(V3(0, 0, -1), 0.5, 5);
     
     u32 GroundCount;
-    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 1, Scale(Identity(), V3(5, 5, 5)));
+    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 4, Scale(Identity(), V3(5, 5, 5)));
+    u32 SuzanneCount;
+    shape* Suzanne = MeshFromFile("models/dragon/dragon.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.25, 0)));
+    // shape* Suzanne = MeshFromFile("models/Suzanne/Original.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.2, 0)));
+    // shape* Ground = MeshFromFile("models/cube/cube.obj", &GroundCount,  1, Scale(Identity(), V3(5, 5, 5)));
 
     // u32 Cube2Count;
     // shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 4, Translate(Identity(), V3(1, 0, 0)));
@@ -663,10 +677,12 @@ int main(int argCount, char **args) {
 
     // AddShapesToWorld(&World, Cube1, Cube1Count);
     // AddShapesToWorld(&World, Cube2, Cube2Count);
-    // AddShapesToWorld(&World, Ground, GroundCount);
+    AddShapesToWorld(&World, Ground, GroundCount);
+    AddShapesToWorld(&World, Suzanne, SuzanneCount);
     AddShapesToWorld(&World, Sph, 1);
-    AddShapesToWorld(&World, Sph3, 1);
     AddShapesToWorld(&World, Sph2, 1);
+    AddShapesToWorld(&World, Sph3, 1);
+    //AddShapesToWorld(&World, Sph4, 1);
 
     printf("Building BVH....\n");
     World.BVH =  BuildBVH(World.Shapes, World.ShapesCount, 0);
@@ -683,8 +699,8 @@ int main(int argCount, char **args) {
     u32 TotalTileCount = TileCountX * TileCountY;
     
     work_queue Queue = {};
-    Queue.MaxBounceCount = 8;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(256));
+    Queue.MaxBounceCount = 16;
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(2048));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

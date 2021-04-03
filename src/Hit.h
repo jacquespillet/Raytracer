@@ -110,14 +110,20 @@ b32 HitTriangle(shape *Shape,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
     //if (u < 0 || u > 1) return false; 
     MissLane |= (u < LaneF32FromF32(0.0f) | u > LaneF32FromF32(1.0f));
 
-    lane_v3 qvec = Lane_Cross(tvec, v0v1); 
+    lane_v3 qvec = Lane_Cross(tvec, v0v1);   
     lane_f32 v =Lane_Inner(RayDirection, qvec) * invDet; 
     //if (v < 0 | u + v > 1) return false; 
     MissLane |= (v < LaneF32FromF32(0.0f) | u + v > LaneF32FromF32(1.0f));
 
     lane_f32 t =Lane_Inner(v0v2, qvec) * invDet; 
 
+    MissLane |= (t <= LaneF32FromF32(0.0f));
+
     lane_v3 HitNormal = (1 - u - v) * n0 + u * n1 + v * n2;
+
+    lane_u32 ReverseNormalMask = Lane_Inner(HitNormal, -RayDirection) <= 0.0f;
+    ConditionalAssign(&HitNormal, ReverseNormalMask, HitNormal * LaneF32FromF32(-1.0f));
+
 
     lane_u32 IntersectMask = AndNot(MissLane, LaneU32FromU32(0xffffffff));
 
@@ -130,7 +136,7 @@ b32 HitTriangle(shape *Shape,hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, 
     ConditionalAssign(&Hit->Transform, IntersectMask, Lane_OrthoBasisFromNormal(Hit->Normal));
     ConditionalAssign(&Hit->InverseTransform, IntersectMask, Lane_Inverse(Hit->Transform));
 
-    return true; 
+    return true;
 }
 
 lane_u32 HitAABB(lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 MinDistance, lane_f32 MaxDistance, aabb AABB) {

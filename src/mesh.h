@@ -6,7 +6,7 @@
 shape* MeshFromFile(char *FileName, u32 *TriangleNumber, u32 MaterialIndex, mat4 Transform)
 {
     Assimp::Importer import;
-    const aiScene *scene = import.ReadFile(FileName, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_FlipWindingOrder); 
+    const aiScene *scene = import.ReadFile(FileName, aiProcess_Triangulate | aiProcess_MakeLeftHanded  | aiProcess_ValidateDataStructure| aiProcess_FlipUVs); 
 
     v3 *Vertices = nullptr;
     v3 *Normals = nullptr;

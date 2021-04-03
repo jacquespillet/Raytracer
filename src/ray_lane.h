@@ -376,6 +376,16 @@ f32 Abs(f32 In)
 }
 
 
+v3 Abs(v3 Value)
+{
+    v3 Result;
+    
+    Result.x = Abs(Value.x);
+    Result.y = Abs(Value.y);
+    Result.z = Abs(Value.z);
+
+    return Result;
+}
 
 
 
@@ -897,6 +907,17 @@ Lane_NOZ(v4 A)
     }
     
     return(Result);
+}
+
+lane_v3 Lane_Abs(lane_v3 Value)
+{
+    lane_v3 Result;
+    
+    Result.x = Lane_Abs(Value.x);
+    Result.y = Lane_Abs(Value.y);
+    Result.z = Lane_Abs(Value.z);
+
+    return Result;
 }
 
 

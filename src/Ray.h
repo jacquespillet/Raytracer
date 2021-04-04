@@ -63,7 +63,10 @@ struct material
     f32 IndexOfRefraction;
     v3 EmitionColor;
     v3 ReflectionColor;
+
     material_types Type;
+
+    
 };
 
 material MetallicMaterial(v3 ReflectionColor, f32 Specular) {
@@ -291,6 +294,9 @@ struct world
 
     u32 ShapesCount;
     shape *Shapes;
+
+    u32 LightsCount;
+    shape *Lights;
 
     // u32 VolumeCount;
     // volume *Volumes;

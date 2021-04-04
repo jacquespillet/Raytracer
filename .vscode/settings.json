@@ -56,6 +56,11 @@
         "xlocmon": "cpp",
         "xlocnum": "cpp",
         "xloctime": "cpp",
-        "xstddef": "cpp"
+        "xstddef": "cpp",
+        "bit": "cpp",
+        "clocale": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "xtree": "cpp"
     }
 }

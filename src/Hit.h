@@ -5,6 +5,8 @@ struct hit {
     lane_f32 Distance;
     lane_mat4 Transform;
     lane_mat4 InverseTransform;
+
+    lane_v3 Wo;
 };
 
 void HitPlane(plane *Plane, hit *Hit, lane_v3 RayOrigin, lane_v3 RayDirection, lane_f32 Tolerance, lane_f32 MinHitDistance) {

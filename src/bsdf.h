@@ -24,6 +24,33 @@ void DeletePlasticMaterial(plastic_material *PlasticMaterial)
     // free(PlasticMaterial.Lambertian);
 }
 
+lane_f32 PlasticMaterial_Pdf(plastic_material *PlasticMaterial, lane_v3 *wo, lane_v3 * wi)  {
+    lane_u32 ZIsZero = wo->z == LaneF32FromF32(0.0f);
+    
+    lane_f32 pdf = LaneF32FromF32(0.0f);
+    lane_u32 matchingComps = LaneU32FromU32(2);
+    
+     
+    pdf = pdf + LambertianReflection_Pdf(&PlasticMaterial->Lambertian, *wo, *wi);
+    pdf = pdf + MicroFacetReflection_Pdf(&PlasticMaterial->Microfacets, *wo, *wi);
+    
+    lane_f32 v = pdf / LaneF32FromU32(matchingComps);
+
+    ConditionalAssign(&v, ZIsZero, LaneF32FromF32(0.0f));
+    
+    return v;
+}
+
+lane_v3 PlasticMaterial_f(plastic_material *PlasticMaterial, lane_v3 *wo, lane_v3 * wi)  {
+    lane_v3 Result = LaneV3(0,0,0);
+     
+    Result = Result + LambertianReflection_f(&PlasticMaterial->Lambertian, *wo, *wi);
+    Result = Result + MicroFacetReflection_f(&PlasticMaterial->Microfacets, *wo, *wi);
+
+    return Result;
+}
+
+
 lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo, lane_v3 * wi,  lane_v2 &u, lane_f32 BxDFSample, lane_f32 *pdf)  {
     //Check if there is at least one matching bxdf in the stored bxdfs
     lane_u32 matchingComps = LaneU32FromU32(2);
@@ -51,20 +78,25 @@ lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo,
     lane_u32 IsMicrofacetMask = (comp == LaneU32FromU32(1));
     
     *wi = wim;
-    //ConditionalAssign(wi, IsLambertianMask, wil);
+    ConditionalAssign(wi, IsLambertianMask, wil);
     
     lane_u32 NullPdfmMask = (pdfm==LaneF32FromF32(0.0f)) & IsMicrofacetMask;
     lane_u32 NullPdflMask = (pdfl==LaneF32FromF32(0.0f)) & IsLambertianMask;
     lane_u32 NullPdfMask = NullPdfmMask |  NullPdflMask;
     
     //Calculating pdf for this direction 
-    
+    #if 1
     *pdf = pdfl + pdfm;
     *pdf = *pdf / matchingCompsFloat;
     
     //Calculating brdf for this direction 
     Result = brdfl + brdfm;  
-    
+    #else
+    *wi = wil;
+    *pdf =  pdfl;
+    //Calculating brdf for this direction 
+    Result =  brdfl;  
+    #endif
     
     ConditionalAssign(&Result, NullPdfMask, LaneV3(0,0,0));
 

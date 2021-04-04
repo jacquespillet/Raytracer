@@ -613,6 +613,14 @@ Lane_LengthSq(lane_v3 A)
     return(Result);
 }
 
+inline lane_f32
+Lane_DistanceSq(lane_v3 A, lane_v3 B)
+{
+    lane_f32 Result = Lane_LengthSq(B-A);
+    
+    return(Result);
+}
+
 inline f32
 LengthSq(v3 A)
 {

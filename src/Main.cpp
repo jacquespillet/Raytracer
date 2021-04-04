@@ -238,7 +238,7 @@ internal void GetCameraRay(camera Camera, lane_f32 FilmX, lane_f32 FilmY, lane_v
 camera CreateCamera(u32 Width, u32 Height)
 {
     f32 FilmDistance =  (1.0f);
-    lane_v3 CameraPosition = LaneV3(-2, 2, -2);
+    lane_v3 CameraPosition = LaneV3(0, 2, -7);
     lane_v3 FilmCenter = LaneV3(0, 0, FilmDistance);
 
     camera Result = {};
@@ -267,6 +267,7 @@ camera CreateCamera(u32 Width, u32 Height)
     return Result;
 }
 
+#include "LightSampling.h"
 
 internal void CastRays(cast_state *State)
 {
@@ -309,7 +310,7 @@ internal void CastRays(cast_state *State)
 
 
         lane_v3 RayOrigin, RayDirection;
-        GetCameraRay(State->Camera, FilmX, FilmY, State->SubPixelSamples[RayIndex], &State->Series, &RayOrigin, &RayDirection);
+        GetCameraRay(State->Camera, FilmX, FilmY, State->SubPixelSamples[RayIndex], &Series, &RayOrigin, &RayDirection);
         
         //Casting the ray through the scene
         for(u32 RayCount=0; RayCount < BounceCount; RayCount++) {
@@ -325,14 +326,13 @@ internal void CastRays(cast_state *State)
             BouncesComputed += (LaneIncrement & LaneMask);
 
             HitBVH(RayOrigin, RayDirection, Tolerance, MinHitDistance, BVH, &Hit, 0);
+            Hit.Wo = Lane_NOZ(-RayDirection);
+
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
             Sample += Lane_Hadamard(Attenuation, MatEmitColor); //Add to the current pixel sample the value of the emitted color that we have hit times the current attenuation
             
            
-            //Sample 1 light from the point of intersection
-            //Sample += Sample1Light(Hit.Point);    
-
             //When we hit the material 0, we have missed. We kill the ray at that point, it's not gonna continue.
             LaneMask = LaneMask & (Hit.MaterialIndex != LaneU32FromU32( 0));
             
@@ -344,6 +344,11 @@ internal void CastRays(cast_state *State)
             if(MaskIsZeroed(LaneMask)) {
                 break;
             } else {
+                
+                lane_u32 EmissiveMaterialMask = (Hit.MaterialIndex == LaneU32FromU32(material_types::Emissive));
+                //Sample 1 light from the point of intersection
+            
+                Sample += Lane_Hadamard(Attenuation, SampleLights(&Hit, World, &Series));
                 //Compute lighting
                 // lane_v3 HitPointAttenuation = ComputeHitPointAttenuation(World, Hit.MaterialIndex, Hit, &RayDirection, &Series);
                 
@@ -507,6 +512,13 @@ void AddShapesToWorld(world* World, shape *Shapes, u32 ShapesCount)
     free(Shapes);
 }
 
+void AddLightsToWorld(world* World, shape *Lights, u32 LightsCount)
+{
+    World->Lights = (shape*) realloc(World->Lights, (World->LightsCount + LightsCount) * sizeof(shape)); 
+    memcpy(World->Lights + World->LightsCount, Lights, LightsCount * sizeof(shape));
+    World->LightsCount += LightsCount;
+}
+
 #define BVH_QSORT 0
 clock_t TimeElapsedBVH=0;
 internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
@@ -583,91 +595,39 @@ internal bvh *BuildBVH(shape *Objects, int NumObjects, u32 level) {
 int main(int argCount, char **args) {
 
 #if TEST_STUFF
-    int size = 512;
-    int numSamples = NextPowerOfTwo(256);
-
-    // random_series Entropy = {LaneU32FromU32(rand())}; 
-    random_series Entropy = {LaneU32FromU32(
-                                            rand()
-                                        ,rand()
-                                        ,rand()
-                                        ,rand()
-                                        ,rand()
-                                        ,rand()
-                                        ,rand()
-                                        ,rand()
-                                        )
-                        }; 
     
-    u32 LaneWidth = LANE_WIDTH;
-    u32 LaneRayCount = (numSamples / LaneWidth);
+    //lane_v3 SampleEmitter(hit *Hit, lane_v2 &u, lane_v3 *wi, f32 *pdf)
 
-    lane_v2 *Samples = (lane_v2*) malloc(LaneRayCount * sizeof(lane_v2));
-    // MultiJitter(Samples, numSamples, &Entropy);
-    MultiJitter(Samples, numSamples, &Entropy);
-    ShuffleArray(Samples, LaneRayCount, &Entropy);
-
-
-    image_32 Image = AllocateImage(size, size);
-
-    for(int y=0; y<size; y++)
-    {
-        for(int x=0; x<size; x++)
-        {
-               u32 *Pixel = GetPixelPointer(Image, x, y); 
-                *Pixel = 0;
-        }
-    }
-
-    
-
-    for(int i=0; i<LaneRayCount/2; i++)
-    {
-        for(int j=0; j<LANE_WIDTH; j++)
-        {
-            f32 x = ExtractAt(Samples[i].x, j);
-            f32 y = ExtractAt(Samples[i].y, j);
-
-            u32 pixX = Max(0, Min(size, x * size));
-            u32 pixY = Max(0, Min(size, y * size));
-            u32 *Pixel = GetPixelPointer(Image, pixX, pixY); 
-            *Pixel = 0xffffffff;
-        }
-
-    }
-
-    WriteImage(Image, "test.bmp");
-    free(Samples);
 #else
 
     //Specular, emition, reflection
     material Materials[] = {
-        EmissiveMaterial({0.7f, 0.7f,0.7f}),
+        EmissiveMaterial({0.0f, 0.0f,0.0f}),
         DiffuseMaterial({0.5f, 0.5f, 0.5f}),
         DiffuseMaterial({0.7f, 0.1f, 0.1f}),
         EmissiveMaterial({30.0f, 30.0f, 30.0f}),
         PlasticMaterial({0.2f, 0.8f, 0.2f}),
         DielectricMaterial(1.2f),
         LambertianMaterial({0.3f, 0.7f, 0.1f}),
-        MicrofacetsMaterial({0.1f, 0.8f, 0.2f}),
+        MicrofacetsMaterial({1.0f, 1.0f, 1.0f}),
         PlasticMaterial({1.0f, 0.0f, 0.0f}),
-        EmissiveMaterial({15,15,15})
+        EmissiveMaterial({20,20,20})
     };
    
  
     
     shape *Sph =  Sphere(V3(-1, 0, 0), 0.5, 8);
-    shape *Sph2 = Sphere(V3(0, 0, -2), 0.5, 9);
+    
     shape *Sph3 = Sphere(V3(1, 0, 0), 0.5, 1);
-    shape *Sph4 = Sphere(V3(0, 0, -1), 0.5, 5);
+    // shape *Sph4 = Sphere(V3(0, 0, -1), 0.5, 5);
     
     u32 GroundCount;
-    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 4, Scale(Identity(), V3(5, 5, 5)));
-    u32 SuzanneCount;
-    shape* Suzanne = MeshFromFile("models/dragon/dragon.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.25, 0)));
-    // shape* Suzanne = MeshFromFile("models/Suzanne/Original.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.2, 0)));
-    // shape* Ground = MeshFromFile("models/cube/cube.obj", &GroundCount,  1, Scale(Identity(), V3(5, 5, 5)));
-
+    shape* Ground = MeshFromFile("models/quad/quad.obj", &GroundCount, 8, Translate(Scale(V3(2.5f, 2.5f, 2.5f)), V3(0, -0.5, 0)));
+    // shape* Suzanne = MeshFromFile("models/dragon/dragon.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.25, 0)));
+    // shape* Suzanne = MeshFromFile("models/cube/cube.obj", &SuzanneCount,  7, Translate(Identity(), V3(0, 0, 2)));
+    u32 QuadCount;
+    shape* Quad = MeshFromFile("models/quad/quad.obj", &QuadCount,  9, Translate(Scale(V3(0.5f, 0.5f, 0.5f)), V3(0, 2.0f, 2)));
+    
     // u32 Cube2Count;
     // shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 4, Translate(Identity(), V3(1, 0, 0)));
     
@@ -675,14 +635,12 @@ int main(int argCount, char **args) {
     World.MaterialCount = ArrayCount(Materials);
     World.Materials = Materials;
 
-    // AddShapesToWorld(&World, Cube1, Cube1Count);
-    // AddShapesToWorld(&World, Cube2, Cube2Count);
+    // AddShapesToWorld(&World, Sph, 1);
+    // AddShapesToWorld(&World, Sph3, 1);
     AddShapesToWorld(&World, Ground, GroundCount);
-    AddShapesToWorld(&World, Suzanne, SuzanneCount);
-    AddShapesToWorld(&World, Sph, 1);
-    AddShapesToWorld(&World, Sph2, 1);
-    AddShapesToWorld(&World, Sph3, 1);
-    //AddShapesToWorld(&World, Sph4, 1);
+
+    AddLightsToWorld(&World, Quad, QuadCount);
+    AddShapesToWorld(&World, Quad, QuadCount);
 
     printf("Building BVH....\n");
     World.BVH =  BuildBVH(World.Shapes, World.ShapesCount, 0);
@@ -700,7 +658,7 @@ int main(int argCount, char **args) {
     
     work_queue Queue = {};
     Queue.MaxBounceCount = 16;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(2048));
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(256));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

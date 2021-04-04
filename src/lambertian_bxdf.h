@@ -61,7 +61,10 @@ lane_v3 LambertianReflection_Sample_f(lambertian_reflection *LambertianReflectio
 {
     *wi = CosineSampleHemisphere(sample);
     lane_u32 zNegative = wo.z <0;
-    lane_v3 negZ = *wi; negZ.z *= -1.0f;
+    
+    lane_v3 negZ = *wi; 
+    negZ.z *= -1.0f;
+    
     ConditionalAssign(wi, zNegative, negZ);
     
 

@@ -48,6 +48,16 @@ inline f32 Pow(f32 A,f32 B) {
     return Result;
 }
 
+inline f32 Cosine(f32 A) {
+    f32 Result = (f32)cos(A);
+    return Result;
+}
+
+inline f32 Sine(f32 A) {
+    f32 Result = (f32)sin(A);
+    return Result;
+}
+
 inline u32 Roundf32ToUint32(f32 F) 
 {
     u32 Result = (u32)(F + 0.5f);

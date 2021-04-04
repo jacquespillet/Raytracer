@@ -554,15 +554,36 @@ mat4 Scale(v3 Size)
     return Result;
 }
 
-mat3 Rotate(f32 Angle) 
+mat4 RotateZ(f32 Angle) 
 {
-    mat3 Result = Mat3F((1.0f));
-    // SetMatrixElement(&Result, 0, 0, Cosine(Angle));
-    // SetMatrixElement(&Result, 0, 1, Sine(Angle));
-    // SetMatrixElement(&Result, 1, 0, -Sine(Angle));
-    // SetMatrixElement(&Result, 1, 1, Cosine(Angle));
+    mat4 Result = Mat4F((1.0f));
+    SetMatrixElement(&Result, 0, 0, Cosine(Angle));
+    SetMatrixElement(&Result, 0, 1, Sine(Angle));
+    SetMatrixElement(&Result, 1, 0, -Sine(Angle));
+    SetMatrixElement(&Result, 1, 1, Cosine(Angle));
     return Result;
 }
+
+mat4 RotateX(f32 Angle) 
+{
+    Angle *= 0.0174533f;
+    mat4 Result = Mat4F((1.0f));
+    SetMatrixElement(&Result, 1, 1, Cosine(Angle));
+    SetMatrixElement(&Result, 1, 2, Sine(Angle));
+    SetMatrixElement(&Result, 2, 1, -Sine(Angle));
+    SetMatrixElement(&Result, 2, 2, Cosine(Angle));
+    return Result;
+}
+
+// mat3 RotateZ(f32 Angle) 
+// {
+//     mat3 Result = Mat3F((1.0f));
+//     SetMatrixElement(&Result, 0, 0, Cosine(Angle));
+//     SetMatrixElement(&Result, 0, 1, Sine(Angle));
+//     SetMatrixElement(&Result, 1, 0, -Sine(Angle));
+//     SetMatrixElement(&Result, 1, 1, Cosine(Angle));
+//     return Result;
+// }
 
 
 mat4 LookAt(v3 CameraPosition, v3 Center, v3 UpVector)

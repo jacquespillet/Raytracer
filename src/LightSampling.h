@@ -157,13 +157,12 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
         lane_u32 PlasticMaterialMask = (MaterialType == LaneU32FromU32(material_types::Plastic));
         if(!MaskIsZeroed(PlasticMaterialMask)) 
         {
-            plastic_material Plastic = PlasticMaterial();
             plastic_material Reflection = PlasticMaterial();
             Reflection.Lambertian.R = MatRefColor;
             Reflection.Microfacets.R = MatRefColor;
             
-            f = PlasticMaterial_f(&Plastic, &WoLocal, &WiLocal);
-            scatteringPdf = PlasticMaterial_Pdf(&Plastic, &WoLocal, &WiLocal);
+            f = PlasticMaterial_f(&Reflection, &WoLocal, &WiLocal);
+            scatteringPdf = PlasticMaterial_Pdf(&Reflection, &WoLocal, &WiLocal);
         }
     
         //If the bxdf is not null
@@ -183,7 +182,7 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
 
 #endif
 
-#if 1
+#if 0
     //SAMPLE BRDF
 
     lane_v3 f = LaneV3(0,0,0);
@@ -215,21 +214,22 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
     {
         plastic_material Plastic = PlasticMaterial();
         //Samples a scattering direction from the hit point    
-        f = PlasticMaterial_Sample_f(&Plastic, WoLocal, &wi, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), RandomUnilateral(Series), &scatteringPdf);
+        f = PlasticMaterial_Sample_f(&Plastic, WoLocal, &wi, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)),LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), RandomUnilateral(Series), &scatteringPdf);
         wi = Lane_TransformDirection(Hit->Transform, wi);
         f = f * Lane_Abs(Lane_Inner(wi, Hit->Normal));
     }
+    
+    lane_u32 LocalLaneMask = LaneU32FromU32(0xFFFFFFFF);
+    LocalLaneMask &= AndNot(IsBlack(f), LaneU32FromU32(0xFFFFFFFF)); 
+    LocalLaneMask &= scatteringPdf > LaneF32FromF32(0.0f);
 
-    LaneMask &= AndNot(IsBlack(f), LaneU32FromU32(0xFFFFFFFF)); 
-    LaneMask &= scatteringPdf > LaneF32FromF32(0.0f);
-
-    if(!MaskIsZeroed(LaneMask)) {
+    if(!MaskIsZeroed(LocalLaneMask)) {
         lane_f32 weight = LaneF32FromF32(1.0f);
         
         //Check if the generated direction hits the light
         lightPdf = ShapePDF(SampledTriangle, Hit, wi);
         
-        lane_u32 HitLightMask = (lightPdf!=LaneF32FromF32(0.0f));
+        LocalLaneMask &= (lightPdf!=LaneF32FromF32(0.0f));
         
         weight = PowerHeuristic(1, scatteringPdf, 1, lightPdf);
     
@@ -251,7 +251,7 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
         lane_v3 newLd = Ld + Lane_Hadamard(f, Li) * weight * (1.0f / scatteringPdf);
 
         lane_u32 LiIsNotBlackMask = AndNot(IsBlack(Li), LaneU32FromU32(0xFFFFFFFF));
-        LiIsNotBlackMask &= HitLightMask;
+        LiIsNotBlackMask &= LocalLaneMask;
         ConditionalAssign(&Ld, LiIsNotBlackMask , newLd);
     }      
 

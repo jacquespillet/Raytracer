@@ -70,15 +70,9 @@ lane_f32 BeckmannDistribution_D(beckmann_distribution Distribution, lane_v3 wh) 
     // lane_u32 laneMask = (isfinite(tan2Theta));
     
     lane_f32 cos4Theta = Cos2Theta(wh) * Cos2Theta(wh);
-    lane_f32 Cos2 = Cos2Phi(wh);
-    lane_f32 Sin2 = Sin2Phi(wh);
-
-    lane_f32 term = -tan2Theta * (Cos2Phi(wh) / (Distribution.AlphaX * Distribution.AlphaX) +
-        Sin2Phi(wh) / (Distribution.AlphaY * Distribution.AlphaY));
-    lane_f32 num = Lane_Exp(term);
-    lane_f32 denom = (Pi32 * Distribution.AlphaX * Distribution.AlphaY * cos4Theta);
-    lane_f32 FinalValue = num /
-           denom;
+    lane_f32 FinalValue = Lane_Exp(-tan2Theta * (Cos2Phi(wh) / (Distribution.AlphaX * Distribution.AlphaX) +
+                                Sin2Phi(wh) / (Distribution.AlphaY * Distribution.AlphaY))) /
+        (Pi32 * Distribution.AlphaX * Distribution.AlphaY * cos4Theta);
 
     lane_f32 Result = LaneF32FromF32(0.0f);
     ConditionalAssign(&Result, laneMask, FinalValue);
@@ -217,7 +211,7 @@ struct microfacet_reflection
     fresnel_dielectric FresnelDielectric;
 };
 
-microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.1f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
+microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.11f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
 {
     microfacet_reflection Result = {};
     Result.R = DiffuseColor;

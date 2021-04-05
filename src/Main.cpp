@@ -124,9 +124,10 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
-        lane_v2 Random = BrdfSample;
+        lane_v2 Random1 = BrdfSample;
+        lane_v2 Random2 = LaneV2(RandomUnilateral(Series), RandomUnilateral(Series));
         lane_f32 RandomBxDF = RandomUnilateral(Series);
-        lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random,RandomBxDF,  &pdf);
+        lane_v3 brdf = PlasticMaterial_Sample_f(&Reflection, -LocalRayDirection, &OutputDirection,Random1, Random2,RandomBxDF,  &pdf);
 
 
         lane_u32 pdfGT0 = pdf > 0;
@@ -145,6 +146,7 @@ lane_u32 SampleMaterial(material *Materials, hit Hit,random_series *Series, lane
         
         //Sample BSDF to get the next path direction
         microfacet_reflection Reflection = MicrofacetReflection(MatRefColor);
+        
         lane_v3 OutputDirection  = LaneV3(0.0f, 0.0f, 0.0f);
         lane_f32 pdf=LaneF32FromF32(0.0f);
         lane_v2 Random = BrdfSample;
@@ -326,7 +328,7 @@ internal void CastRays(cast_state *State)
             BouncesComputed += (LaneIncrement & LaneMask);
 
             HitBVH(RayOrigin, RayDirection, Tolerance, MinHitDistance, BVH, &Hit, 0);
-            Hit.Wo = Lane_NOZ(-RayDirection);
+            // Hit.Wo = Lane_NOZ(-RayDirection);
 
             //When we hit a light, we multiply its intensity with the attenuation
             lane_v3 MatEmitColor = LaneMask & GatherLaneV3(World->Materials, Hit.MaterialIndex, EmitionColor); //Get the emition colors of the rays that have hit an emitter
@@ -344,10 +346,6 @@ internal void CastRays(cast_state *State)
             if(MaskIsZeroed(LaneMask)) {
                 break;
             } else {
-                
-                lane_u32 EmissiveMaterialMask = (Hit.MaterialIndex == LaneU32FromU32(material_types::Emissive));
-                //Sample 1 light from the point of intersection
-            
                 Sample += Lane_Hadamard(Attenuation, SampleLights(&Hit, World, &Series));
                 //Compute lighting
                 // lane_v3 HitPointAttenuation = ComputeHitPointAttenuation(World, Hit.MaterialIndex, Hit, &RayDirection, &Series);
@@ -616,7 +614,7 @@ int main(int argCount, char **args) {
    
  
     
-    shape *Sph =  Sphere(V3(-1, 0, 0), 0.5, 8);
+    shape *Sph =  Sphere(V3(0, -1, 0), 0.5, 8);
     
     shape *Sph3 = Sphere(V3(1, 0, 0), 0.5, 1);
     // shape *Sph4 = Sphere(V3(0, 0, -1), 0.5, 5);
@@ -626,7 +624,7 @@ int main(int argCount, char **args) {
     // shape* Suzanne = MeshFromFile("models/dragon/dragon.obj", &SuzanneCount,  6, Translate(Identity(), V3(0, 0.25, 0)));
     // shape* Suzanne = MeshFromFile("models/cube/cube.obj", &SuzanneCount,  7, Translate(Identity(), V3(0, 0, 2)));
     u32 QuadCount;
-    shape* Quad = MeshFromFile("models/quad/quad.obj", &QuadCount,  9, Translate(Scale(V3(0.5f, 0.5f, 0.5f)), V3(0, 2.0f, 2)));
+    shape* Quad = MeshFromFile("models/quad/quad.obj", &QuadCount,  9, Translate(Scale(V3(0.5f, 0.5f, 0.5f)), V3(0, 1.5f, 0)));
     
     // u32 Cube2Count;
     // shape* Cube2 = MeshFromFile("models/cube/cube.obj", &Cube2Count, 4, Translate(Identity(), V3(1, 0, 0)));
@@ -658,7 +656,7 @@ int main(int argCount, char **args) {
     
     work_queue Queue = {};
     Queue.MaxBounceCount = 16;
-    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(256));
+    Queue.RaysPerPixel = Max(LANE_WIDTH, NextPowerOfTwo(10));
     if(argCount==2) {
         Queue.RaysPerPixel = atoi(args[1]);
     }

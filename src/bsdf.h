@@ -12,7 +12,7 @@ plastic_material PlasticMaterial()
     // Result.Microfacets = (microfacet_reflection*) malloc(sizeof(microfacet_reflection));
     // Result.Lambertian  = (lambertian_reflection*) malloc(sizeof(lambertian_reflection));
     
-    Result.Microfacets = MicrofacetReflection(LaneV3(0.7,0.7,0.7), LaneF32FromF32(0.1f));
+    Result.Microfacets = MicrofacetReflection(LaneV3(0.7,0.7,0.7), LaneF32FromF32(0.05f));
     Result.Lambertian = LambertianReflection(LaneV3(0.7, 0.7, 0.7));
 
     return Result;
@@ -50,6 +50,7 @@ lane_v3 PlasticMaterial_f(plastic_material *PlasticMaterial, lane_v3 *wo, lane_v
     return Result;
 }
 
+#define TEST_BXDF 0
     
 lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo, lane_v3 * wi,  lane_v2 &u, lane_v2 &u1, lane_f32 BxDFSample, lane_f32 *pdf)  {
     //Check if there is at least one matching bxdf in the stored bxdfs
@@ -74,6 +75,8 @@ lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo,
     brdfl = LambertianReflection_Sample_f(&PlasticMaterial->Lambertian, wo, &wil, u, &pdfl);
     brdfm = MicroFacetReflection_Sample_f(&PlasticMaterial->Microfacets, wo, &wim, u1, &pdfm);
 
+
+
     lane_u32 IsLambertianMask = (comp == LaneU32FromU32(0));
     lane_u32 IsMicrofacetMask = (comp == LaneU32FromU32(1));
     
@@ -84,6 +87,7 @@ lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo,
     lane_u32 NullPdflMask = (pdfl==LaneF32FromF32(0.0f)) & IsLambertianMask;
     lane_u32 NullPdfMask = NullPdfmMask |  NullPdflMask;
     
+#if TEST_BXDF ==0
     //Calculating pdf for this direction 
     *pdf = pdfl + pdfm;
     *pdf = *pdf / matchingCompsFloat;
@@ -92,9 +96,23 @@ lane_v3 PlasticMaterial_Sample_f(plastic_material *PlasticMaterial, lane_v3 &wo,
     Result =LaneV3(0.0f, 0.0f, 0.0f);
     Result += LambertianReflection_f(&PlasticMaterial->Lambertian, wo, *wi);
     Result += MicroFacetReflection_f(&PlasticMaterial->Microfacets, wo, *wi);
-    
-    
+#elif TEST_BXDF == 1
+    //Calculating pdf for this direction 
+    *pdf = pdfl;
+    //Calculating brdf for this direction 
+    Result =LaneV3(0.0f, 0.0f, 0.0f);
+    Result += LambertianReflection_f(&PlasticMaterial->Lambertian, wo, *wi);
+
+    *wi = wil;
+#elif TEST_BXDF == 2    //Calculating pdf for this direction 
+    *pdf = pdfm;
+    //Calculating brdf for this direction 
+    Result =LaneV3(0.0f, 0.0f, 0.0f);
+    Result += MicroFacetReflection_f(&PlasticMaterial->Microfacets, wo, *wi);
+    *wi = wim;
+#endif   
     ConditionalAssign(&Result, NullPdfMask, LaneV3(0,0,0));
+    ConditionalAssign(pdf, NullPdfMask, LaneF32FromF32(0.0f));
 
     return Result;        
 }

@@ -69,7 +69,7 @@ lane_f32 ShapePDF(shape *Triangle, hit *Hit, lane_v3 Wi){
     return pdf;
 }
 
-lane_v3 SampleEmitter(shape *EmitterShape, hit *Hit, lane_v2 &u, lane_v3 *wi, lane_f32 *pdf)
+lane_v3 SampleEmitter(shape *EmitterShape, hit *Hit, lane_v2 &u, lane_v3 *wi, lane_f32 *pdf, v3 ShapeEmition)
 {
     hit SampledPosition = SampleTriangle(&EmitterShape->Fields.TriangleFields.Triangle, u);
     
@@ -80,7 +80,7 @@ lane_v3 SampleEmitter(shape *EmitterShape, hit *Hit, lane_v2 &u, lane_v3 *wi, la
     *pdf = ShapePDF(EmitterShape, Hit, *wi);
     
     //TODO: Use the material emittance here instead of arbitrary 10
-    lane_v3 EmittedLight = LaneV3(10, 10, 10);
+    lane_v3 EmittedLight = LaneV3FromV3(ShapeEmition);    
     
     lane_u32 LightIsNullMask = Lane_Inner(SampledPosition.Normal, -*wi) < LaneF32FromF32(0.0f);
     ConditionalAssign(&EmittedLight, LightIsNullMask, LaneV3(0,0,0));
@@ -100,7 +100,7 @@ lane_f32 PowerHeuristic(u32 nf, lane_f32 fPdf, u32 ng, lane_f32 gPdf) {
     return (f*f) / (f*f + g*g);
 }
 
-lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
+lane_v3 SampleLights(hit *Hit, world *World, lane_f32 uSample, lane_v2 LightSample, lane_v2 BrdfSample, random_series *Series)
 {
     if(World->LightsCount == 0) return LaneV3(0,0,0);
 
@@ -115,12 +115,15 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
     // VisibilityTester visibility;
 
     //Find one light
-    lane_f32 RandomLaneF32 = Lane_Min((RandomUnilateral(Series)  * LaneF32FromU32(World->LightsCount)), LaneF32FromU32(World->LightsCount-1));
+    lane_f32 RandomLaneF32 = Lane_Min((uSample  * LaneF32FromU32(World->LightsCount)), LaneF32FromU32(World->LightsCount-1));
     f32 Random = Extract0(RandomLaneF32);
     shape *SampledTriangle = &World->Lights[(u32)Random];
 
     //Sample the light. Wi contains the direction from hitPoint to light, lightPdf contains the probability of sampling that light
-    lane_v3 Li = SampleEmitter(SampledTriangle, Hit, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), &wi, &lightPdf);
+    v3 LightEmition  = World->Materials[SampledTriangle->MatIndex].EmitionColor;
+    // v3 LightEmition  = V3(10,10,10);
+
+    lane_v3 Li = SampleEmitter(SampledTriangle, Hit, LightSample, &wi, &lightPdf, LightEmition);
     
     lane_u32 LaneMask = lightPdf > 0;
 #if 1
@@ -168,7 +171,17 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
         //If the bxdf is not null
     
         LaneMask &= AndNot(IsBlack(f), LaneU32FromU32(0xFFFFFFFF));
-        //TODO
+        //TODO 
+        hit OcclusionHit = {};
+        OcclusionHit.Distance = LaneF32FromF32(F32Max); //Closest hit
+        OcclusionHit.MaterialIndex=LaneU32FromU32(0); //Index of the hit material
+        OcclusionHit.Position = {};
+        OcclusionHit.Normal = {};
+        lane_f32 Tolerance = LaneF32FromF32(0.0001f);
+        lane_f32 MinHitDistance = LaneF32FromF32(0.001f);
+        HitBVH(Hit->Position, wi, Tolerance, MinHitDistance, World->BVH, &OcclusionHit, 0);
+        LaneMask &= (OcclusionHit.MaterialIndex == LaneU32FromU32(SampledTriangle->MatIndex));
+        
         // if(!visibility.Unoccluded(scene)){ //If the path from point to light is occluded -> Li is 0
         //     Li = lane_v3(0);
         // }
@@ -196,7 +209,7 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
     {
         lambertian_reflection Lambertian = LambertianReflection(LaneV3(1,1,1));
         //Samples a scattering direction from the hit point    
-        f = LambertianReflection_Sample_f(&Lambertian, WoLocal, &wi, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), &scatteringPdf);
+        f = LambertianReflection_Sample_f(&Lambertian, WoLocal, &wi, BrdfSample, &scatteringPdf);
         wi = Lane_TransformDirection(Hit->Transform, wi);
         f = f * Lane_Abs(Lane_Inner(wi, Hit->Normal));
     } 
@@ -205,7 +218,7 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
     {
         microfacet_reflection Microfacet = MicrofacetReflection(LaneV3(1,1,1));
         //Samples a scattering direction from the hit point    
-        f = MicroFacetReflection_Sample_f(&Microfacet, WoLocal, &wi, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), &scatteringPdf);
+        f = MicroFacetReflection_Sample_f(&Microfacet, WoLocal, &wi, BrdfSample, &scatteringPdf);
         wi = Lane_TransformDirection(Hit->Transform, wi);
         f = f * Lane_Abs(Lane_Inner(wi, Hit->Normal));
     } 
@@ -214,7 +227,7 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
     {
         plastic_material Plastic = PlasticMaterial();
         //Samples a scattering direction from the hit point    
-        f = PlasticMaterial_Sample_f(&Plastic, WoLocal, &wi, LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)),LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), RandomUnilateral(Series), &scatteringPdf);
+        f = PlasticMaterial_Sample_f(&Plastic, WoLocal, &wi, BrdfSample,LaneV2(RandomUnilateral(Series),RandomUnilateral(Series)), RandomUnilateral(Series), &scatteringPdf);
         wi = Lane_TransformDirection(Hit->Transform, wi);
         f = f * Lane_Abs(Lane_Inner(wi, Hit->Normal));
     }
@@ -245,7 +258,8 @@ lane_v3 SampleLights(hit *Hit, world *World, random_series* Series)
 
         lane_v3 Li = LaneV3(0.0f, 0.0f, 0.0f);
         // if(foundSurfaceInteraction) {
-            Li = LaneV3(10, 10, 10);
+        
+            Li = LaneV3FromV3(LightEmition);
         // }
 
         lane_v3 newLd = Ld + Lane_Hadamard(f, Li) * weight * (1.0f / scatteringPdf);

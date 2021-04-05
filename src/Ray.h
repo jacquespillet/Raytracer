@@ -364,6 +364,11 @@ struct cast_state
     //Memory arenas
     lane_v2 *BrdfSamples[2];
     lane_v2 *SubPixelSamples;
+
+    lane_v2 *LightShapeSamples[2];
+    lane_v2 *LightBrdfSamples[2];
+    lane_f32 *LightSamples[2];
+
     
     camera Camera;
 

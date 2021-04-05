@@ -75,6 +75,16 @@ internal void Jitter(lane_v2 *WideSamples, u32 NumSamples, random_series *Series
         }
     }
 
+        
+    if(Width * Width < NumSamples)
+    {
+        for(u32 i=Width * Width-1; i<NumSamples; i++)
+        {
+            Samples[i].x = Extract0(RandomUnilateral(Series));
+            Samples[i].y = Extract0(RandomUnilateral(Series));
+        }
+    }
+
     for(u32 SingleSampleIndex=0; SingleSampleIndex<NumSamples; SingleSampleIndex+= LANE_WIDTH) {
 #if(LANE_WIDTH == 1)
         
@@ -118,6 +128,23 @@ internal void Jitter(lane_v2 *WideSamples, u32 NumSamples, random_series *Series
 
     free(Samples);
 }
+
+// internal void NRooks(lane_v2 *WideSamples, u32 NumSamples, random_series *Series)
+// {
+//     for(u32 i=0; i<NumSamples; i++)
+//     {
+//         WideSamples[i].x = (((f32)i + RandomUnilateral(Series)) / (f32)NumSamples);
+//         WideSamples[i].y = (((f32)i + RandomUnilateral(Series)) / (f32)NumSamples);
+//     }
+
+//     for(u32 i=NumSamples-2; i>0; i--)
+//     {
+//         u32 Target = (u32)(RandomUnilateral(Series) * (f32)i);
+//         f32 tmp = WideSamples[i+1].x;
+//         WideSamples[i+1].x = WideSamples[Target].x;
+//         WideSamples[Target].x = tmp;
+//     }
+// }
 
 internal void MultiJitter(lane_v2 *WideSamples, u32 NumSamples, random_series *Series) {
     v2 *Samples = (v2*) malloc(NumSamples * sizeof(v2));

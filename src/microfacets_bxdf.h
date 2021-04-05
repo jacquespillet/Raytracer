@@ -211,7 +211,7 @@ struct microfacet_reflection
     fresnel_dielectric FresnelDielectric;
 };
 
-microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.11f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
+microfacet_reflection MicrofacetReflection(lane_v3 DiffuseColor, lane_f32 Roughness=LaneF32FromF32(0.01f), lane_f32 etaI=LaneF32FromF32(1.0f), lane_f32 etaT =LaneF32FromF32( 1.5f))
 {
     microfacet_reflection Result = {};
     Result.R = DiffuseColor;
@@ -266,6 +266,7 @@ lane_v3 MicroFacetReflection_Sample_f(microfacet_reflection *MicroFacetReflectio
     //TODO(Jacques)
     lane_u32 SameHemisphereMask = AndNot(SameHemisphere(wo, *wi), LaneU32FromU32(0xFFFFFFFF));
     ConditionalAssign(&Result, SameHemisphereMask, LaneV3(0.0f, 0.0f, 0.0f));
+    ConditionalAssign(pdf, SameHemisphereMask, LaneF32FromF32(0.0f));
 
     return Result;
 }

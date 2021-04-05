@@ -1,5 +1,5 @@
 #if !defined(LANE_WIDTH)
-#define LANE_WIDTH 1
+#define LANE_WIDTH 8
 #endif
 
 struct v2 
